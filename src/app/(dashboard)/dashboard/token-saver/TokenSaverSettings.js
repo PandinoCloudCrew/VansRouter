@@ -2,6 +2,67 @@
 
 import { Card, Toggle } from "@/shared/components";
 
+const WRITING_PLUGIN_CONTROLS = [
+  {
+    key: "plainEnglishEnabled",
+    label: "Plain English",
+    sourceLabel: "plain-english",
+    sourceUrl: "https://github.com/Tradelord223/plain-english",
+    description: "Uses clear words, direct sentences, and less jargon.",
+  },
+  {
+    key: "steEnabled",
+    label: "STE-inspired",
+    sourceLabel: "asd-ste100-skill",
+    sourceUrl: "https://github.com/danyuchn/asd-ste100-skill",
+    description:
+      "Uses Simplified Technical English principles for clearer, consistent wording. Inspired by STE; not a compliance checker.",
+  },
+  {
+    key: "actionFirstEnabled",
+    label: "Action-first",
+    sourceLabel: "i-have-adhd",
+    sourceUrl: "https://github.com/ayghri/i-have-adhd",
+    description:
+      "Puts the next action first and breaks work into short, scannable steps.",
+  },
+];
+
+function WritingPluginRow({
+  control,
+  enabled,
+  loading,
+  saving,
+  error,
+  onChange,
+}) {
+  return (
+    <div className="flex items-center justify-between pt-4 mt-4 border-t border-border gap-4">
+      <div className="min-w-0 flex-1">
+        <p className="font-medium">
+          {control.label}{" "}
+          <a
+            href={control.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs font-normal text-primary underline hover:opacity-80"
+          >
+            ({control.sourceLabel})
+          </a>
+        </p>
+        <p className="text-sm text-text-muted">{control.description}</p>
+        {error && <p className="mt-1 text-xs text-error">{error}</p>}
+      </div>
+      <Toggle
+        checked={enabled}
+        disabled={loading || saving}
+        aria-label={control.label}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
 export default function TokenSaverSettings({
   rtkEnabled,
   handleRtkEnabled,
@@ -35,6 +96,12 @@ export default function TokenSaverSettings({
   handlePonytailLevel,
   ponytailLevel,
   handlePonytailEnabled,
+  writingPluginSettings,
+  writingPluginSettingsLoading,
+  writingPluginLoadError,
+  writingPluginSaving,
+  writingPluginErrors,
+  handleWritingPluginEnabled,
   pxpipeChipClass,
   pxpipeStatusLabel,
   setShowPxpipeModal,
@@ -303,6 +370,24 @@ export default function TokenSaverSettings({
           />
         </div>
       </div>
+      {writingPluginLoadError && (
+        <p role="alert" className="mt-4 text-xs text-warning">
+          {writingPluginLoadError}
+        </p>
+      )}
+      {WRITING_PLUGIN_CONTROLS.map((control) => (
+        <WritingPluginRow
+          key={control.key}
+          control={control}
+          enabled={writingPluginSettings[control.key]}
+          loading={writingPluginSettingsLoading}
+          saving={!!writingPluginSaving[control.key]}
+          error={writingPluginErrors[control.key]}
+          onChange={(value) =>
+            handleWritingPluginEnabled(control.key, value)
+          }
+        />
+      ))}
       {/* PXPIPE integration card */}
       <div className="flex items-center justify-between pt-4 mt-4 border-t border-border gap-4 flex-wrap">
         <div className="min-w-0 flex-1">

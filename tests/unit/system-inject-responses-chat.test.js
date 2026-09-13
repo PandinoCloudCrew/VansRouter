@@ -66,3 +66,12 @@ describe("systemInject - OpenAI Responses & Chat regression (#106 / #2497)", () 
     expect(body.messages[1]).toEqual({ role: "user", content: "hello" });
   });
 });
+
+describe("systemInject - Responses text input", () => {
+  it("adds instructions for string input without changing the user text and deduplicates retries", () => {
+    const body = { input: "The job may fail. Do not deploy.", previous_response_id: "resp-previous" };
+    injectSystemPrompt(body, FORMATS.OPENAI_RESPONSES, "Plain writing policy");
+    injectSystemPrompt(body, FORMATS.OPENAI_RESPONSES, "Plain writing policy");
+    expect(body).toEqual({ input: "The job may fail. Do not deploy.", previous_response_id: "resp-previous", instructions: "Plain writing policy" });
+  });
+});

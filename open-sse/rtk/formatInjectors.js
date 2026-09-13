@@ -282,7 +282,11 @@ export function injectKiroSystem(body, prompt) {
 
     let systemPromptWritten = false;
     try {
-      body.systemPrompt = next;
+      // Kiro rejects this field on the wire. Keep it only as injector metadata;
+      // the prompt itself is delivered through the first user message below.
+      Object.defineProperty(body, "systemPrompt", {
+        value: next, writable: true, configurable: true, enumerable: false,
+      });
       systemPromptWritten = true;
     } catch (_) {}
 

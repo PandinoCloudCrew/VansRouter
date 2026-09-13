@@ -22,6 +22,16 @@ export default function TokenSaverClient() {
   const [cavemanLevel, setCavemanLevel] = useState("full");
   const [ponytailEnabled, setPonytailEnabled] = useState(false);
   const [ponytailLevel, setPonytailLevel] = useState("full");
+  const [writingPluginSettings, setWritingPluginSettings] = useState({
+    plainEnglishEnabled: true,
+    steEnabled: true,
+    actionFirstEnabled: true,
+  });
+  const [writingPluginSettingsLoading, setWritingPluginSettingsLoading] =
+    useState(true);
+  const [writingPluginLoadError, setWritingPluginLoadError] = useState("");
+  const [writingPluginSaving, setWritingPluginSaving] = useState({});
+  const [writingPluginErrors, setWritingPluginErrors] = useState({});
   const [codeAware, setCodeAware] = useState(false);
   const [kompress, setKompress] = useState(true);
   const [pxpipeEnabled, setPxpipeEnabled] = useState(false);
@@ -145,6 +155,31 @@ export default function TokenSaverClient() {
     patchSetting({ ponytailLevel: level });
   };
 
+  const handleWritingPluginEnabled = async (key, value) => {
+    setWritingPluginSaving((current) => ({ ...current, [key]: true }));
+    setWritingPluginErrors((current) => ({ ...current, [key]: "" }));
+
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
+
+      if (!res.ok) throw new Error(`Settings request failed (${res.status})`);
+
+      setWritingPluginSettings((current) => ({ ...current, [key]: value }));
+    } catch (error) {
+      console.log(`Error updating ${key}:`, error);
+      setWritingPluginErrors((current) => ({
+        ...current,
+        [key]: "Could not save. Try again.",
+      }));
+    } finally {
+      setWritingPluginSaving((current) => ({ ...current, [key]: false }));
+    }
+  };
+
   const togglePendingExtra = (extra) => {
     setPendingExtras((current) =>
       current.includes(extra)
@@ -194,29 +229,41 @@ export default function TokenSaverClient() {
     const loadSettings = async () => {
       try {
         const res = await fetch("/api/settings");
-        if (res.ok) {
-          const data = await res.json();
-          setRtkEnabledState(data.rtkEnabled !== false);
-          setHeadroomEnabled(!!data.headroomEnabled);
-          setHeadroomUrl(data.headroomUrl || "http://localhost:8787");
-          if (typeof data.headroomTimeoutMs === "number") setHeadroomTimeoutMs(data.headroomTimeoutMs);
-          setCodeAware(data.headroomCodeAware === true);
-          setKompress(data.headroomKompress !== false);
-          setCavemanEnabled(!!data.cavemanEnabled);
-          setCavemanLevel(data.cavemanLevel || "full");
-          setPonytailEnabled(!!data.ponytailEnabled);
-          setPonytailLevel(data.ponytailLevel || "full");
-          setPxpipeEnabled(!!data.pxpipeEnabled);
-          if (typeof data.pxpipeMinChars === "number") setPxpipeMinChars(data.pxpipeMinChars);
-          setGuards({
-            loopGuard: data.loopGuardEnabled !== false,
-            circuitBreaker: data.circuitBreakerEnabled !== false,
-            semaphore: data.semaphoreEnabled !== false,
-          });
-          refreshHeadroomStatus();
-          refreshPxpipeStatus().then(runPxpipeHealth);
-        }
-      } catch {}
+        if (!res.ok) throw new Error(`Settings request failed (${res.status})`);
+
+        const data = await res.json();
+        setRtkEnabledState(data.rtkEnabled !== false);
+        setHeadroomEnabled(!!data.headroomEnabled);
+        setHeadroomUrl(data.headroomUrl || "http://localhost:8787");
+        if (typeof data.headroomTimeoutMs === "number") setHeadroomTimeoutMs(data.headroomTimeoutMs);
+        setCodeAware(data.headroomCodeAware === true);
+        setKompress(data.headroomKompress !== false);
+        setCavemanEnabled(!!data.cavemanEnabled);
+        setCavemanLevel(data.cavemanLevel || "full");
+        setPonytailEnabled(!!data.ponytailEnabled);
+        setPonytailLevel(data.ponytailLevel || "full");
+        setWritingPluginSettings({
+          plainEnglishEnabled: data.plainEnglishEnabled !== false,
+          steEnabled: data.steEnabled !== false,
+          actionFirstEnabled: data.actionFirstEnabled !== false,
+        });
+        setPxpipeEnabled(!!data.pxpipeEnabled);
+        if (typeof data.pxpipeMinChars === "number") setPxpipeMinChars(data.pxpipeMinChars);
+        setGuards({
+          loopGuard: data.loopGuardEnabled !== false,
+          circuitBreaker: data.circuitBreakerEnabled !== false,
+          semaphore: data.semaphoreEnabled !== false,
+        });
+        refreshHeadroomStatus();
+        refreshPxpipeStatus().then(runPxpipeHealth);
+      } catch (error) {
+        console.log("Error loading writing plugin settings:", error);
+        setWritingPluginLoadError(
+          "Could not load saved writing settings. Defaults are shown."
+        );
+      } finally {
+        setWritingPluginSettingsLoading(false);
+      }
     };
     loadSettings();
   }, [refreshHeadroomStatus, refreshPxpipeStatus, runPxpipeHealth, setPxpipeMinChars]);
@@ -288,6 +335,12 @@ export default function TokenSaverClient() {
         handlePonytailLevel={handlePonytailLevel}
         ponytailLevel={ponytailLevel}
         handlePonytailEnabled={handlePonytailEnabled}
+        writingPluginSettings={writingPluginSettings}
+        writingPluginSettingsLoading={writingPluginSettingsLoading}
+        writingPluginLoadError={writingPluginLoadError}
+        writingPluginSaving={writingPluginSaving}
+        writingPluginErrors={writingPluginErrors}
+        handleWritingPluginEnabled={handleWritingPluginEnabled}
         pxpipeChipClass={pxpipeChipClass}
         pxpipeStatusLabel={pxpipeStatusLabel}
         setShowPxpipeModal={setShowPxpipeModal}

@@ -333,7 +333,9 @@ describe("system-inject kiro", () => {
     injectSystemPrompt(body, FORMATS.KIRO, P1);
     const after1 = JSON.parse(JSON.stringify(body));
     injectSystemPrompt(body, FORMATS.KIRO, P1);
-    expect(body.systemPrompt).toBe(after1.systemPrompt);
+    expect(body.systemPrompt).toBe(`${oldPrompt}${SEP}${P1}`);
+    expect(after1).not.toHaveProperty("systemPrompt");
+    expect(JSON.parse(JSON.stringify(body))).toEqual(after1);
     expect(body.conversationState.history[0].userInputMessage.content).toBe(after1.conversationState.history[0].userInputMessage.content);
     // different prompt both apply
     injectSystemPrompt(body, FORMATS.KIRO, P2);

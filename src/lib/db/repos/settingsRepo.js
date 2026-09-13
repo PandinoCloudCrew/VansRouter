@@ -45,6 +45,9 @@ const DEFAULT_SETTINGS = {
   cavemanLevel: "full",
   ponytailEnabled: false,
   ponytailLevel: "full",
+  plainEnglishEnabled: true,
+  steEnabled: true,
+  actionFirstEnabled: true,
 };
 
 async function readRaw() {

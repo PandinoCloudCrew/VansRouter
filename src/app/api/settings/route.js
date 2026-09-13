@@ -13,6 +13,7 @@ const SETTINGS_RESPONSE_HEADERS = {
 
 // Secrets must never be mass-assigned from request body (CWE-915)
 const PROTECTED_SETTING_KEYS = ["password", "mitmSudoEncrypted"];
+const WRITING_PLUGIN_KEYS = ["plainEnglishEnabled", "steEnabled", "actionFirstEnabled"];
 
 export async function GET() {
   try {
@@ -38,6 +39,11 @@ export async function GET() {
 export async function PATCH(request) {
   try {
     const body = await request.json();
+    for (const key of WRITING_PLUGIN_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(body, key) && typeof body[key] !== "boolean") {
+        return NextResponse.json({ error: `${key} must be a boolean` }, { status: 400 });
+      }
+    }
 
     // Strip protected secrets before any internal handling sets them
     for (const key of PROTECTED_SETTING_KEYS) delete body[key];

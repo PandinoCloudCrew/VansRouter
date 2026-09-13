@@ -26,6 +26,10 @@ import { dedupeTools } from "../utils/toolDeduper.js";
 import { detectLoop } from "../utils/loopGuard.js";
 import { injectCaveman } from "../rtk/caveman.js";
 import { injectPonytail } from "../rtk/ponytail.js";
+import { injectPlainEnglish } from "../rtk/plainEnglish.js";
+import { injectSte } from "../rtk/ste.js";
+import { injectActionFirst } from "../rtk/actionFirst.js";
+import { injectWritingCompatibility } from "../rtk/writingCompatibility.js";
 import { injectSystemPrompt } from "../rtk/systemInject.js";
 import { injectTerminationPrompt, injectToolProtocolPrompt } from "../rtk/terminationPrompt.js";
 import { compressMessages, formatRtkLog } from "../rtk/index.js";
@@ -125,7 +129,7 @@ export function stripContinuityFields(body) {
   return body;
 }
 
-export async function handleChatCore({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, apiKeyInfo = null, apiKeyName = null, ccFilterNaming, rtkEnabled, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs = 3000, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, pxpipeEnabled = false, pxpipeMinChars = 1000, pxpipeTimeoutMs = 10000, pxpipeTransform = "png", onPxpipeEvent = null, sourceFormatOverride, providerThinking, clientSignal, loopGuardEnabled = true, systemPrompt = null, clientModelId = null, resolveProxyConfig = null }) {
+export async function handleChatCore({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, apiKeyInfo = null, apiKeyName = null, ccFilterNaming, rtkEnabled, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs = 3000, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, plainEnglishEnabled = true, steEnabled = true, actionFirstEnabled = true, pxpipeEnabled = false, pxpipeMinChars = 1000, pxpipeTimeoutMs = 10000, pxpipeTransform = "png", onPxpipeEvent = null, sourceFormatOverride, providerThinking, clientSignal, loopGuardEnabled = true, systemPrompt = null, clientModelId = null, resolveProxyConfig = null }) {
   const { provider, model, accountCount = 0 } = modelInfo;
   const requestStartTime = Date.now();
 
@@ -340,6 +344,20 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   if (tokenSaverEnabled && ponytailEnabled && ponytailLevel) {
     injectPonytail(translatedBody, finalFormat, ponytailLevel);
     log?.debug?.("PONYTAIL", `${ponytailLevel} | ${finalFormat}`);
+  }
+
+  if (tokenSaverEnabled) {
+    if (plainEnglishEnabled) injectPlainEnglish(translatedBody, finalFormat);
+    if (steEnabled) injectSte(translatedBody, finalFormat);
+    if (actionFirstEnabled) injectActionFirst(translatedBody, finalFormat);
+    injectWritingCompatibility(translatedBody, finalFormat, {
+      plainEnglishEnabled, steEnabled, actionFirstEnabled,
+      cavemanEnabled: cavemanEnabled && !!cavemanLevel,
+      ponytailEnabled: ponytailEnabled && !!ponytailLevel,
+    });
+    if (plainEnglishEnabled || steEnabled || actionFirstEnabled) {
+      log?.debug?.("WRITING", `v1 | plain=${!!plainEnglishEnabled} ste=${!!steEnabled} action=${!!actionFirstEnabled} | ${finalFormat}`);
+    }
   }
 
   if (TOOL_PROTOCOL_PROMPT_PROVIDERS.has(provider)) {

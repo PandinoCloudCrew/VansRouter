@@ -28,6 +28,12 @@ export function injectSystemPrompt(body, format, prompt) {
       injectGeminiSystem(body, prompt);
       return;
     }
+    // Responses accepts text input without an instructions field.
+    if ((format === FORMATS.OPENAI_RESPONSES || format === FORMATS.CODEX)
+      && typeof body.input === "string" && body.instructions == null) {
+      body.instructions = prompt;
+      return;
+    }
     if (typeof body.instructions === "string") {
       injectInstructionsSystem(body, prompt);
       return;

@@ -71,6 +71,9 @@ describe("handleChatCore Headroom diagnostics", () => {
       rtkEnabled: false,
       cavemanEnabled: false,
       ponytailEnabled: false,
+      plainEnglishEnabled: false,
+      steEnabled: false,
+      actionFirstEnabled: false,
       clientRawRequest: {
         endpoint: "/v1/chat/completions",
         body: {},
@@ -111,6 +114,9 @@ describe("handleChatCore Headroom diagnostics", () => {
       rtkEnabled: false,
       cavemanEnabled: false,
       ponytailEnabled: false,
+      plainEnglishEnabled: false,
+      steEnabled: false,
+      actionFirstEnabled: false,
       clientRawRequest: {
         endpoint: "/v1/chat/completions",
         body: {},
@@ -140,6 +146,9 @@ describe("handleChatCore Headroom diagnostics", () => {
       rtkEnabled: false,
       cavemanEnabled: false,
       ponytailEnabled: false,
+      plainEnglishEnabled: false,
+      steEnabled: false,
+      actionFirstEnabled: false,
       clientRawRequest: {
         endpoint: "/v1/chat/completions",
         body: {},
@@ -187,6 +196,9 @@ describe("handleChatCore Headroom diagnostics", () => {
       rtkEnabled: false,
       cavemanEnabled: false,
       ponytailEnabled: false,
+      plainEnglishEnabled: false,
+      steEnabled: false,
+      actionFirstEnabled: false,
       clientRawRequest: {
         endpoint: "/v1/chat/completions",
         body: {},
@@ -238,6 +250,9 @@ describe("handleChatCore Headroom diagnostics", () => {
       rtkEnabled: false,
       cavemanEnabled: false,
       ponytailEnabled: false,
+      plainEnglishEnabled: false,
+      steEnabled: false,
+      actionFirstEnabled: false,
       clientRawRequest: {
         endpoint: "/v1/chat/completions",
         body: {},

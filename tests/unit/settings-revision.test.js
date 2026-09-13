@@ -93,3 +93,45 @@ describe("settings revision cache", () => {
     }
   });
 });
+
+
+describe("writing plugin settings", () => {
+  it("defaults missing plugin settings on without changing legacy flags", async () => {
+    await dbApi.updateSettings({ cavemanEnabled: true, ponytailEnabled: false });
+    const settings = await dbApi.getSettings();
+    expect(settings).toMatchObject({ plainEnglishEnabled: true, steEnabled: true, actionFirstEnabled: true, cavemanEnabled: true, ponytailEnabled: false });
+  });
+  it("persists independent disabled settings after cache reload", async () => {
+    await dbApi.updateSettings({ plainEnglishEnabled: false });
+    await dbApi.updateSettings({ steEnabled: false });
+    const { invalidateSettingsCache } = await import("@/lib/db/repos/settingsRepo.js");
+    invalidateSettingsCache();
+    expect(await dbApi.getSettings()).toMatchObject({ plainEnglishEnabled: false, steEnabled: false, actionFirstEnabled: true });
+    await dbApi.updateSettings({ actionFirstEnabled: false, steEnabled: true });
+    invalidateSettingsCache();
+    expect(await dbApi.getSettings()).toMatchObject({ plainEnglishEnabled: false, steEnabled: true, actionFirstEnabled: false });
+  });
+});
+
+describe("writing plugin settings API", () => {
+  it("rejects non-boolean plugin values without saving any part of the patch", async () => {
+    const { PATCH } = await import("@/app/api/settings/route.js");
+    for (const value of ["false", 0, null, {}]) {
+      const response = await PATCH(new Request("http://localhost/api/settings", {
+        method: "PATCH", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plainEnglishEnabled: value, steEnabled: false }),
+      }));
+      expect(response.status).toBe(400);
+      expect(await dbApi.getSettings()).toMatchObject({ plainEnglishEnabled: true, steEnabled: true });
+    }
+  });
+  it("updates only the selected plugin and returns effective defaults", async () => {
+    const { PATCH } = await import("@/app/api/settings/route.js");
+    const response = await PATCH(new Request("http://localhost/api/settings", {
+      method: "PATCH", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ steEnabled: false }),
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ plainEnglishEnabled: true, steEnabled: false, actionFirstEnabled: true });
+  });
+});
