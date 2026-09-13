@@ -1,7 +1,14 @@
 # syntax=docker/dockerfile:1.7
-ARG NODE_IMAGE=node:22-alpine
+ARG NODE_IMAGE=node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
 FROM ${NODE_IMAGE} AS base
 WORKDIR /app
+
+# Refresh installed Alpine packages and npm's bundled dependencies in both stages.
+# npm/npx remain available for runtime PXPIPE installation and CLI updates.
+ARG NPM_VERSION=11.19.1
+RUN apk upgrade --no-cache && \
+  npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund && \
+  npm cache clean --force
 
 FROM base AS builder
 
@@ -16,26 +23,27 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
 # Tailscale static binaries for Alpine Linux (bundled so tunnel works in Docker).
-# Fetches the latest stable tailscale and tailscaled. Override with --build-arg.
-FROM alpine:3.19 AS tailscale
-ARG TAILSCALE_VERSION=1.80.3
+# Pin the release and verify its archive before installing either binary.
+FROM alpine:3.24 AS tailscale
+ARG TAILSCALE_VERSION=1.102.4
 ARG TARGETARCH
 RUN apk add --no-cache curl ca-certificates && \
   mkdir -p /out && \
   TARCH=${TARGETARCH:-amd64} && \
   case "$TARCH" in \
-    amd64) TS_ARCH=amd64 ;; \
-    arm64) TS_ARCH=arm64 ;; \
-    arm) TS_ARCH=arm ;; \
+    amd64) TS_ARCH=amd64; TS_SHA256=50748df1045e60b5b695f19f4c56b0da36c019948b440fb456b6584a50f0d8b9 ;; \
+    arm64) TS_ARCH=arm64; TS_SHA256=9dd1e6a592a014bbaea0103167ffe299adeda4ba14e078ce9c2895364f6c4c3f ;; \
+    arm) TS_ARCH=arm; TS_SHA256=b981a59cb85fb923ee6e1860ee6934772c83a840a6627f0dbfd7711ed690b869 ;; \
     *) echo "Unsupported arch: $TARCH"; exit 1 ;; \
   esac && \
   curl -fsSL "https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_VERSION}_${TS_ARCH}.tgz" -o /tmp/tailscale.tgz && \
+  echo "${TS_SHA256}  /tmp/tailscale.tgz" | sha256sum -c - && \
   tar -xzf /tmp/tailscale.tgz -C /tmp && \
   cp /tmp/tailscale_${TAILSCALE_VERSION}_${TS_ARCH}/tailscale /out/tailscale && \
   cp /tmp/tailscale_${TAILSCALE_VERSION}_${TS_ARCH}/tailscaled /out/tailscaled && \
   chmod +x /out/tailscale /out/tailscaled
 
-FROM ${NODE_IMAGE} AS runner
+FROM base AS runner
 WORKDIR /app
 
 LABEL org.opencontainers.image.title="9router"
