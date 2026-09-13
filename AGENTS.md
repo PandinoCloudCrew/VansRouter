@@ -129,6 +129,7 @@ Release/tag/deploy rules are mandatory: read [`.agent/cicd.md`](./.agent/cicd.md
 
 ## Sub-docs
 
+- [`FORK-MAINTENANCE.md`](./FORK-MAINTENANCE.md) — PCC writing plugins, runtime dependencies, verification and deployment patch workflow
 - [`open-sse/AGENTS.md`](./open-sse/AGENTS.md) — SSE engine details
 - [`tests/translator/AGENTS.md`](./tests/translator/AGENTS.md) — Translator testing
 - [`agent.md`](./agent.md) — Production deployment (Indonesian)

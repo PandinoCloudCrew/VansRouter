@@ -21,6 +21,9 @@
 
 </div>
 
+PCC fork: see [fork maintenance](FORK-MAINTENANCE.md) for the independent
+default-on writing plugins, runtime security updates, tests and build workflow.
+
 ---
 
 ## 🤔 Why VansRouter?
