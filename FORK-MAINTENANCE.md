@@ -1,5 +1,8 @@
 # PCC fork maintenance
 
+For feature descriptions, examples and controls, see the
+[writing plugins user guide](WRITING-PLUGINS.md).
+
 This guide covers the changes on `codex/writing-plugins`, based on upstream
 VansRouter v0.91.21 (`cbbeccc8cf5989210459de007721428975710c3d`).
 The implementation commits are `9f689cc` (writing plugins and npm lockfile) and

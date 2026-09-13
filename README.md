@@ -21,8 +21,9 @@
 
 </div>
 
-PCC fork: see [fork maintenance](FORK-MAINTENANCE.md) for the independent
-default-on writing plugins, runtime security updates, tests and build workflow.
+PCC fork: see the [writing plugins user guide](WRITING-PLUGINS.md) for features
+and controls, and [fork maintenance](FORK-MAINTENANCE.md) for implementation,
+runtime security updates, tests and the build workflow.
 
 ---
 
@@ -493,6 +494,9 @@ Default URLs:
 | 🧠 **Headroom Token Saver** ([Headroom](https://github.com/chopratejas/headroom)) | Optional external `/v1/compress` proxy before provider routing                           | Save more context tokens without changing clients |
 | 🪨 **Caveman Mode** ([Caveman](https://github.com/JuliusBrussee/caveman) ⭐52K)   | Inject caveman-speak prompt → LLM replies terse, technical substance preserved           | Save **up to 65% output tokens**                  |
 | 🐴 **Ponytail** ([Ponytail](https://github.com/DietrichGebert/ponytail))          | Inject "lazy senior dev" prompt → LLM writes minimal, YAGNI-first code (Lite/Full/Ultra) | **Fewer output tokens, less refactoring**         |
+| **Plain English** ([guide](WRITING-PLUGINS.md#plain-english)) | Default-on guidance for direct, natural explanations | Clearer replies that retain detail and uncertainty |
+| **STE-inspired** ([guide](WRITING-PLUGINS.md#ste-inspired)) | Default-on guidance for explicit, consistent technical instructions | Easier-to-follow procedures and agent handoffs |
+| **Action-first** ([guide](WRITING-PLUGINS.md#action-first)) | Default-on guidance for useful answers, bounded steps and evidenced progress | Less searching for what to do next |
 | 🎯 **Smart 3-Tier Fallback**                                                      | Auto-route: Subscription → Cheap → Free                                                  | Never stop coding, zero downtime                  |
 | 📊 **Real-Time Quota Tracking**                                                   | Live token count + reset countdown                                                       | Maximize subscription value                       |
 | 🔄 **Format Translation**                                                         | OpenAI ↔ Claude ↔ Gemini ↔ Cursor ↔ Kiro ↔ Vertex                                        | Works with any CLI tool                           |
@@ -567,6 +571,21 @@ With Ponytail:    shortest working diff, no unrequested abstractions, fewer toke
 ```
 
 Never trades away: input validation, error handling that prevents data loss, security, accessibility, or anything explicitly requested. Enable in Dashboard → Endpoint → Ponytail. Stacks with Caveman (output terseness) and RTK (input compression).
+
+### Writing plugins: Plain English, STE-inspired and Action-first
+
+This fork includes three independent plugins, enabled by default in
+**Dashboard → Token Saver**. Plain English improves explanations; STE-inspired
+clarifies generated technical instructions; Action-first makes answers and
+steps easier to follow. Each has its own persistent on/off switch. Caveman and
+Ponytail keep their separate switches and levels.
+
+They apply at the router without installing skills in each client. They guide
+newly generated text, including instructions for people or other agents;
+incoming prompts are not rewritten. The shared request header
+`x-9router-token-saver: off` bypasses them along with the other token savers.
+See the [user guide](WRITING-PLUGINS.md) for examples, API settings, interaction
+rules and limitations. STE-inspired does not certify ASD-STE100 compliance.
 
 ### 🎯 Smart 3-Tier Fallback
 
