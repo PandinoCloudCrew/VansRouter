@@ -1,0 +1,27 @@
+schema_version: 1
+subjects:
+  - name: vansrouter
+    kind: image
+    version: "0.91.21-writing.2"
+    ak:
+      instance: pcc
+      repository: pcc-staging
+      artifact_path: v2/vansrouter/manifests/0.91.21-writing.2
+      digest: sha256:cf476efe166b3f07395ce31851cc8330441d352e597f281cf5abb128843dcee9
+    dtrack:
+      project_name: vansrouter:0.91.21-writing.2
+      project_uuid: 60936def-9b50-422e-9e0a-f504fd629e97
+  - name: vansrouter
+    kind: image
+    version: "0.91.21-writing.2"
+    ak:
+      instance: pcc
+      repository: pcc
+      artifact_path: v2/vansrouter/manifests/0.91.21-writing.2
+      digest: sha256:cf476efe166b3f07395ce31851cc8330441d352e597f281cf5abb128843dcee9
+  - name: vansrouter
+    kind: image
+    version: "0.91.21-writing.1"
+    dtrack:
+      project_name: vansrouter:0.91.21-writing.1
+      project_uuid: a74b0da0-3d38-4cd3-9adf-db8e5d46c024

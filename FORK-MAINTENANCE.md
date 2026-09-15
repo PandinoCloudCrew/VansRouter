@@ -176,6 +176,55 @@ Responses path passed; this fork does not fix that envelope conversion.
 
 ## Runtime dependencies and image updates
 
+### Project-generated SBOMs
+
+Use native npm for the application lockfile and upstream Syft for the final
+Docker image. No custom generator, vulnerability scan or DTrack upload is involved.
+Install Syft through its official installation instructions (macOS: `brew install syft`).
+
+`npm run build` (and direct `node scripts/build.js` builds) automatically writes
+`<distDir>/standalone/sbom/application.cdx.json`. Generation errors fail the build.
+The standalone artifact and Docker image include this file; Core CI also uploads
+it as a build artifact. The Docker release workflow installs pinned Syft, catalogs
+the newly built image by digest for both amd64 and arm64, and uploads CycloneDX
+and native Syft JSON artifacts. Image SBOM generation errors fail that build job.
+This post-image step runs in the release workflow, not inside a bare local
+`docker build` invocation.
+
+For ad-hoc generation outside the build:
+
+```sh
+mkdir -p sbom
+npm run --silent sbom > sbom/application.cdx.json.tmp && \
+  mv sbom/application.cdx.json.tmp sbom/application.cdx.json
+npm run --silent sbom:image -- docker:vansrouter:0.91.22 \
+  --source-name vansrouter-image --source-version 0.91.22 \
+  --output syft-json=sbom/image.syft.json \
+  > sbom/image.cdx.json.tmp && mv sbom/image.cdx.json.tmp sbom/image.cdx.json
+```
+
+Replace the image reference and version with the exact release. Use an immutable
+image reference where available. Both commands emit CycloneDX 1.5 JSON; `--silent`
+keeps npm's banner out of the output. The additional native Syft JSON preserves
+image-source metadata that the CycloneDX conversion can omit. Generated `sbom/`
+files are excluded from Git and the Docker build context.
+
+The application SBOM uses `package-lock.json` with development dependencies
+omitted and production optional dependencies retained. It describes the npm
+lockfile, not the installed pnpm tree or traced Next.js bundle. The image SBOM
+catalogs the selected image's OS packages, npm packages and embedded Go modules.
+Generate separate image inventories for each released architecture. Keep
+application and image projects/versions separate in any later DTrack imports.
+License metadata does not establish policy compliance or release approval.
+
+Local verification on 2026-09-15: npm emitted 189 production dependency records,
+all with license metadata and package URLs. Syft 1.51.1 cataloged 479 package
+records from the Linux arm64 `vansrouter:0.91.22-sbom-review` image, including
+Alpine packages, Next.js and embedded Go modules. Its CycloneDX output contains
+1,004 components including file records; 340 components have license metadata.
+Both CycloneDX outputs parsed as 1.5 with unique references and valid dependency
+links. These are inventory checks, not vulnerability or policy validation.
+
 `Dockerfile` pins the Node base digest, upgrades Alpine packages and installs
 global npm 11.19.1 in the host builder and shared target base. It bundles both
 Tailscale binaries at 1.102.4 with per-architecture archive SHA-256 checks.

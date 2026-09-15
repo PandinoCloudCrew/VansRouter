@@ -215,4 +215,12 @@ if (fs.existsSync(srcLibDir)) {
   console.log(`▶ created ${distDir}/lib/localDb.js shim for instrumentation hook`);
 }
 
+console.log("▶ generating application SBOM");
+const sbomDir = path.join(standaloneDir, "sbom");
+fs.mkdirSync(sbomDir, { recursive: true });
+fs.writeFileSync(path.join(sbomDir, "application.cdx.json"), execFileSync(
+  process.platform === "win32" ? "npm.cmd" : "npm", ["run", "--silent", "sbom"],
+  { cwd: appDir, encoding: "utf8", shell: process.platform === "win32", maxBuffer: 10 * 1024 * 1024 }
+));
+
 console.log("✅ build complete");

@@ -14,6 +14,8 @@
     "lint": "eslint . --no-warn-ignored",
     "test": "npx vitest run -c tests/vitest.config.js",
     "test:watch": "npx vitest -c tests/vitest.config.js",
+    "sbom": "npm sbom --sbom-format=cyclonedx --sbom-type=application --package-lock-only --omit=dev",
+    "sbom:image": "syft scan --output cyclonedx-json@1.5",
     "build": "node scripts/build.js",
     "start": "node custom-server.js --port 20127",
     "dev:bun": "bun --bun next dev --webpack --port 20127",

@@ -19,6 +19,7 @@ package-lock.json
 /.next-cli-build/
 /out/
 /build
+/sbom/
 cli/.build-home/
 
 # =============================================================================

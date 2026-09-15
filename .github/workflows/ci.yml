@@ -64,6 +64,13 @@ jobs:
       - name: Build application
         run: pnpm run build
 
+      - name: Upload application SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-sbom-${{ github.sha }}
+          path: .next/standalone/sbom/application.cdx.json
+          if-no-files-found: error
+
       - name: Verify standalone output exists
         shell: bash
         run: |

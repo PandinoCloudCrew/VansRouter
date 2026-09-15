@@ -65,6 +65,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push staging image
+        id: image-build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -76,6 +77,34 @@ jobs:
           platforms: linux/amd64,linux/arm64
           provenance: false
           sbom: false
+
+      - name: Install Syft
+        id: syft
+        uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          syft-version: v1.51.1
+
+      - name: Generate image SBOMs
+        env:
+          IMAGE: ${{ env.GHCR_IMAGE }}@${{ steps.image-build.outputs.digest }}
+          RELEASE_VERSION: ${{ needs.check-branch.outputs.version }}
+          SYFT_CHECK_FOR_APP_UPDATE: "false"
+        run: |
+          mkdir -p sbom
+          for arch in amd64 arm64; do
+            "${{ steps.syft.outputs.cmd }}" scan "registry:$IMAGE" \
+              --platform "linux/$arch" \
+              --source-name vansrouter-image --source-version "$RELEASE_VERSION" \
+              --output "cyclonedx-json@1.5=sbom/image-$arch.cdx.json" \
+              --output "syft-json=sbom/image-$arch.syft.json"
+          done
+
+      - name: Upload image SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-sboms-${{ needs.check-branch.outputs.version }}
+          path: sbom/
+          if-no-files-found: error
 
       - name: Verify multi-platform manifest
         run: |
