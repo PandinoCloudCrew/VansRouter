@@ -42,6 +42,13 @@ checks before committing and pushing the fork branch. Do not reapply the old
 deployment patches to this branch. This source synchronization does not update
 the separate deployment checkout or publish a release.
 
+Push a source synchronization with `git push --no-follow-tags pcc HEAD`.
+The 2026-09-15 push inherited global `push.followTags=true` and also copied
+upstream's annotated tags to the fork. No release workflow appeared in the
+subsequent GitHub Actions checks. The tags were not deleted or moved.
+This checkout now sets `push.followTags=false` locally; use the explicit flag
+in other clones to avoid repeating this side effect.
+
 Validation for this synchronization:
 
 - Focused suite: 106 passed in seven suites.
