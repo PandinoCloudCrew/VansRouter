@@ -3,11 +3,74 @@
 For feature descriptions, examples and controls, see the
 [writing plugins user guide](WRITING-PLUGINS.md).
 
-This guide covers the changes on `codex/writing-plugins`, based on upstream
+This guide covers the changes on `codex/writing-plugins`, originally based on upstream
 VansRouter v0.91.21 (`cbbeccc8cf5989210459de007721428975710c3d`).
-The implementation commits are `9f689cc` (writing plugins and npm lockfile) and
+The original implementation commits are `9f689cc` (writing plugins and npm lockfile) and
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
+
+## Upstream synchronization, 2026-09-15
+
+`codex/writing-plugins` now includes upstream v0.91.22, commit
+`a4bc6a11d58be1da342204dba3908b8556835ea4`, through a merge that preserves
+the published fork history. The writing plugins, independent settings,
+dashboard controls, attribution, npm lockfile and runtime security pins remain.
+
+Upstream's Kiro injector now appends guidance directly to conversation content
+without creating `systemPrompt` metadata. Use this implementation together with
+the fork's Responses string-input handling. The Docker builder runs on
+`BUILDPLATFORM`; a separate stage compiles SQLite for the target architecture.
+Both dependency stages use the committed npm lockfile. Keep Alpine/npm updates
+in the builder and target base, plus the pinned Tailscale checksums.
+
+For future synchronization, fetch the upstream branch explicitly. Older clones
+may have only a release-tag fetch refspec. Disable tag pruning when fetching
+multiple remotes, because the fork may not contain upstream's tags:
+
+```sh
+git -c fetch.pruneTags=false fetch --no-prune --no-tags origin \
+  refs/heads/main:refs/remotes/origin/main
+git -c fetch.pruneTags=false fetch --no-prune --no-tags pcc
+```
+
+Start with a clean checkout and record the unit/translator baseline before
+merging. Merge `origin/main` into the fork branch, reconcile shared injection
+and Docker changes, and refresh `package-lock.json` with
+`npm install --package-lock-only --ignore-scripts --no-audit --no-fund`.
+Run the same tests again, the focused suite below, and the Docker build/runtime
+checks before committing and pushing the fork branch. Do not reapply the old
+deployment patches to this branch. This source synchronization does not update
+the separate deployment checkout or publish a release.
+
+Validation for this synchronization:
+
+- Focused suite: 106 passed in seven suites.
+- Linux amd64: 295 passed in nine suites (the focused suite plus
+  `golden-url-header.test.js` and `deploy-atomic.test.js`). The full Linux run
+  was stopped because of emulation overhead; full-suite comparison used macOS.
+- macOS unit/translator baseline: 3,086 passed, 3 failed, 82 skipped.
+  After merging: 3,164 passed, 5 failed, 82 skipped. Pristine v0.91.22:
+  3,144 passed, the same 5 failures, 82 skipped. The failures are two
+  Linux-specific header snapshots and three deployment tests comparing
+  `/var` with macOS's canonical `/private/var` paths. Upstream resolved the
+  earlier CLI SQLite packaging test failure.
+- Linux amd64 Docker/Next build and native SQLite query passed. The local image
+  is `vansrouter:0.91.22-writing-sync-final`, image manifest
+  `sha256:dc6eb5493a24b9335a155daa139dd5e9eb3a9f44b36484de013fa41f80fc85ce`.
+- Disposable-container checks passed: version/health, login, SQLite file,
+  default settings, boolean validation, independent toggles, save/reload,
+  API-key requests, request bypass, streaming tool calls and 429 account
+  fallback. Each enabled writing prompt occurred once per outbound request.
+  These used a local mock provider, not a live external AI provider.
+- As the node user, npm install/ci and npx execution of a local fixture passed.
+  Tailscale 1.102.4 started in userspace mode; its socket reported `NeedsLogin`.
+- Upstream's new line-ending attributes normalized seven files during the
+  merge. Trailing whitespace was removed in two of those files; no additional
+  behavior changes were made there. Both staged and unstaged diff checks passed.
+
+No production deployment, registry publication, vulnerability rescan, arm64
+runtime validation or browser UI validation was performed for this sync.
+The previously recorded security findings below are not resolved by this sync.
 
 ## Writing behavior and settings
 
@@ -59,8 +122,8 @@ Preserve these injection details when editing shared code:
 - Prompts use a single paragraph (`join(" ")`). String deduplication splits on
   double newlines; adding paragraph breaks requires revisiting deduplication.
 - Responses string input without `instructions` must still receive guidance.
-- Kiro uses conversation content on the wire. Its internal `systemPrompt`
-  metadata is non-enumerable; it must not appear as a top-level JSON field.
+- Kiro uses conversation content on the wire. Its injector must not create
+  `systemPrompt`; it must not appear as a top-level JSON field.
 - Repeated injection on the same body must not duplicate guidance. Test actual
   translators and JSON serialization, not just an intermediate object.
 - Preserve original task text, tool definitions, schemas and requested formats.
@@ -107,7 +170,7 @@ Responses path passed; this fork does not fix that envelope conversion.
 ## Runtime dependencies and image updates
 
 `Dockerfile` pins the Node base digest, upgrades Alpine packages and installs
-global npm 11.19.1 in a shared base for builder and runner. It bundles both
+global npm 11.19.1 in the host builder and shared target base. It bundles both
 Tailscale binaries at 1.102.4 with per-architecture archive SHA-256 checks.
 
 Keep `package-lock.json` committed: the Docker build uses `npm ci`. The upstream
