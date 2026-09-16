@@ -5,6 +5,15 @@ subjects:
     version: "0.91.22-7466e144-security.2"
     ak:
       instance: pcc
+      repository: pcc
+      artifact_path: v2/vansrouter/manifests/0.91.22-7466e144-security.2
+      artifact_id: c725a27b-aab9-4422-9b17-7f3062eefab1
+      digest: sha256:a8c81a6abd113685de7aab6696a6aeb906204be7b57212cbd9fb9f929c6eb540
+  - name: vansrouter
+    kind: image
+    version: "0.91.22-7466e144-security.2"
+    ak:
+      instance: pcc
       repository: pcc-staging
       artifact_path: v2/vansrouter/manifests/0.91.22-7466e144-security.2
       artifact_id: 5687dd17-bf0f-44dd-8b42-f77dca23a812

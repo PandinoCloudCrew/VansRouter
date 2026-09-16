@@ -271,7 +271,8 @@ deploy the tested image digest; do not overwrite an already published tag.
 Built Linux amd64 from base commit `7466e144` plus the dependency/security changes
 above. Published `pcc-staging/vansrouter:0.91.22-7466e144-security.2`, digest
 `sha256:a8c81a6abd113685de7aab6696a6aeb906204be7b57212cbd9fb9f929c6eb540`.
-This is a staging candidate, not a production deployment or release approval.
+This image was scanned in staging, then deployed unchanged on 2026-09-16 as
+recorded below. Deployment does not resolve the remaining findings.
 The publisher cannot request scans (AK returns 403). The administrator-triggered
 verification scans completed, starting at 2026-09-16 15:34:10 UTC:
 
@@ -341,9 +342,45 @@ Remaining findings and coverage limits:
   rows for the baseline. These remain open; package upgrades do not establish
   license compliance. No policy was relaxed.
 - Persisted `/app/data/bin/tailscaled` can override the bundled daemon. Existing
-  volumes require separate binary inspection before rollout. No production
-  volume or deployment was changed. Only Linux amd64 was built/tested; live
+  volumes require separate binary inspection before rollout. The srv0 rollout
+  confirmed that no persisted override exists. Only Linux amd64 was built/tested; live
   Funnel authentication/traffic and other architectures were not exercised.
+
+### Production deployment, 2026-09-16
+
+Source commit `7685b034` was pushed to `pcc/codex/writing-plugins`. A separate
+committed-tree Docker build completed successfully; deployment retained the
+exact previously scanned image rather than substituting the rebuilt artifact.
+The production Compose image is pinned to
+`registry.pcc.fyi/pcc/vansrouter:0.91.22-7466e144-security.2@sha256:a8c81a6abd113685de7aab6696a6aeb906204be7b57212cbd9fb9f929c6eb540`.
+
+Administrator promotion created production artifact
+`c725a27b-aab9-4422-9b17-7f3062eefab1`. The Docker API initially lacked the
+manifest after promotion. Pushing the identical image through Docker retained
+its digest, and a normal Docker pull on srv0 succeeded before activation.
+This verifies this image's availability, not historical promoted images.
+
+Production container `9router` became healthy. Public version returned
+`0.91.22`, health returned `{"ok":true}`, and `/dashboard` returned 307 to
+`/masuk`. SQLite integrity returned `ok`; authenticated `/v1/models` returned
+200 with 33 models. OIDC initiation returned 307 to `https://sso.pandino.co`.
+API-key requirements, OIDC settings, and Caveman/Ponytail ultra settings matched
+the predeployment baseline. The original `9router_9router-data` volume remains
+attached. Full human OIDC sign-in was not tested.
+
+Before activation, a full volume backup and a verified SQLite online backup
+were uploaded to `r2:pcc-9router/backups/pcc-soho-srv0/` as
+`9router_9router-data_13.tar.gz` and
+`predeploy-0.91.22-security.2-20260916.sqlite.gz` respectively.
+Remote baseline, verification output, database backup, and previous Compose
+configuration are retained in
+`/home/pcc/builds/vansrouter-0.91.22-deploy.Yv5s3m`.
+Rollback uses `compose.previous.yaml` and the cached
+`registry.pcc.fyi/pcc/vansrouter:0.91.21-writing.2`, preserving the same volume.
+
+The fresh macOS suite reported 3164 passed, 5 failed, 82 skipped, matching the
+recorded baseline failures. The two affected suites passed in Linux Docker:
+189 tests passed. No scan findings or policy violations were suppressed.
 
 ### Recorded security result, 2026-09-13
 
