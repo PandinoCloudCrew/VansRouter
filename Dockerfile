@@ -21,6 +21,7 @@ RUN apk upgrade --no-cache && \
 RUN apk add --no-cache python3 make g++ linux-headers
 
 COPY package.json package-lock.json ./
+COPY scripts/patch-monaco-sanitizer.cjs ./scripts/patch-monaco-sanitizer.cjs
 RUN --mount=type=cache,target=/root/.npm \
   npm ci --include=optional --no-audit --no-fund
 
@@ -36,29 +37,26 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++ linux-headers
 
 COPY package.json package-lock.json ./
+COPY scripts/patch-monaco-sanitizer.cjs ./scripts/patch-monaco-sanitizer.cjs
 RUN --mount=type=cache,target=/root/.npm \
   npm ci --include=optional --no-audit --no-fund
 
-# Tailscale static binaries for Alpine Linux (bundled so tunnel works in Docker).
-# Pin the release and verify its archive before installing either binary.
-FROM alpine:3.24 AS tailscale
+# ponytail: rebuild the stable release until upstream binaries include these security fixes.
+FROM --platform=$BUILDPLATFORM golang:1.26.8-alpine@sha256:ce864e7223ac17b1775e6fd0b4c0db580c2eb50e7953a427916379e4b92a1628 AS tailscale
 ARG TAILSCALE_VERSION=1.102.4
 ARG TARGETARCH
+WORKDIR /src
 RUN apk add --no-cache curl ca-certificates && \
-  mkdir -p /out && \
-  TARCH=${TARGETARCH:-amd64} && \
-  case "$TARCH" in \
-    amd64) TS_ARCH=amd64; TS_SHA256=50748df1045e60b5b695f19f4c56b0da36c019948b440fb456b6584a50f0d8b9 ;; \
-    arm64) TS_ARCH=arm64; TS_SHA256=9dd1e6a592a014bbaea0103167ffe299adeda4ba14e078ce9c2895364f6c4c3f ;; \
-    arm) TS_ARCH=arm; TS_SHA256=b981a59cb85fb923ee6e1860ee6934772c83a840a6627f0dbfd7711ed690b869 ;; \
-    *) echo "Unsupported arch: $TARCH"; exit 1 ;; \
-  esac && \
-  curl -fsSL "https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_VERSION}_${TS_ARCH}.tgz" -o /tmp/tailscale.tgz && \
-  echo "${TS_SHA256}  /tmp/tailscale.tgz" | sha256sum -c - && \
-  tar -xzf /tmp/tailscale.tgz -C /tmp && \
-  cp /tmp/tailscale_${TAILSCALE_VERSION}_${TS_ARCH}/tailscale /out/tailscale && \
-  cp /tmp/tailscale_${TAILSCALE_VERSION}_${TS_ARCH}/tailscaled /out/tailscaled && \
-  chmod +x /out/tailscale /out/tailscaled
+  curl -fsSL "https://codeload.github.com/tailscale/tailscale/tar.gz/refs/tags/v${TAILSCALE_VERSION}" -o /tmp/tailscale.tgz && \
+  echo "784b023e825e1cca7b146ac6a7aff08b179d60d10839b51019f315dab426c871  /tmp/tailscale.tgz" | sha256sum -c - && \
+  tar -xzf /tmp/tailscale.tgz --strip-components=1 -C /src
+RUN --mount=type=cache,target=/go/pkg/mod \
+  --mount=type=cache,target=/root/.cache/go-build \
+  go get golang.org/x/crypto@v0.56.0 golang.org/x/image@v0.45.0 \
+    github.com/insomniacslk/dhcp@v0.0.0-20260719225207-c76316d4aa82 && \
+  CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} \
+  go build -trimpath -ldflags="-s -w -X tailscale.com/version.longStamp=${TAILSCALE_VERSION}-vansrouter-security.1 -X tailscale.com/version.shortStamp=${TAILSCALE_VERSION}" \
+    -o /out/ ./cmd/tailscale ./cmd/tailscaled
 
 FROM base AS runner
 WORKDIR /app

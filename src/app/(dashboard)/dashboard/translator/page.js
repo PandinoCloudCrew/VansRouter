@@ -6,7 +6,7 @@ import { useCopyToClipboard } from "@/shared/hooks/useCopyToClipboard";
 import { useTheme } from "@/shared/hooks/useTheme";
 import dynamic from "next/dynamic";
 
-const Editor = dynamic(() => import("@monaco-editor/react"), { ssr: false });
+const Editor = dynamic(() => import("@/shared/components/TranslatorEditor"), { ssr: false });
 
 function saveTranslatorFile(file, content) {
   return fetch("/api/translator/save", {

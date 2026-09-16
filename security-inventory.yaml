@@ -2,6 +2,29 @@ schema_version: 1
 subjects:
   - name: vansrouter
     kind: image
+    version: "0.91.22-7466e144-security.2"
+    ak:
+      instance: pcc
+      repository: pcc-staging
+      artifact_path: v2/vansrouter/manifests/0.91.22-7466e144-security.2
+      artifact_id: 5687dd17-bf0f-44dd-8b42-f77dca23a812
+      digest: sha256:a8c81a6abd113685de7aab6696a6aeb906204be7b57212cbd9fb9f929c6eb540
+    dtrack:
+      project_name: vansrouter:0.91.22-7466e144-security.2
+      project_uuid: 740c4035-5723-4e4a-bbcc-815bb3bbd695
+  - name: vansrouter
+    kind: image
+    version: "0.91.22-7466e144-security.1"
+    ak:
+      instance: pcc
+      repository: pcc-staging
+      artifact_path: v2/vansrouter/manifests/0.91.22-7466e144-security.1
+      digest: sha256:fa4c7bcd96ce02dfaa3b64961c1e1070260ceda4a826376d499159153cfd598f
+    dtrack:
+      project_name: vansrouter:0.91.22-7466e144-security.1
+      project_uuid: 92b7d9b9-3e0d-433a-a44e-0fdf4fb8bd0c
+  - name: vansrouter
+    kind: image
     version: "0.91.21-writing.2"
     ak:
       instance: pcc

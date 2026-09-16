@@ -226,8 +226,19 @@ Both CycloneDX outputs parsed as 1.5 with unique references and valid dependency
 links. These are inventory checks, not vulnerability or policy validation.
 
 `Dockerfile` pins the Node base digest, upgrades Alpine packages and installs
-global npm 11.19.1 in the host builder and shared target base. It bundles both
-Tailscale binaries at 1.102.4 with per-architecture archive SHA-256 checks.
+global npm 11.19.1 in the host builder and shared target base. It rebuilds both
+Tailscale 1.102.4 binaries from a SHA-256-verified source archive using a pinned
+Go 1.26.8 image. The build upgrades `golang.org/x/crypto` to v0.56.0,
+`golang.org/x/image` to v0.45.0 and `github.com/insomniacslk/dhcp` to
+v0.0.0-20260719225207-c76316d4aa82. These fixes are not in the upstream 1.102.4
+binary archives. Return to upstream binaries when their module inventory covers
+these fixes. The custom long version identifies this downstream build.
+
+Monaco's private DOMPurify copy is replaced during `postinstall` with the
+installed DOMPurify 3.4.15 ESM source. Both npm and pnpm override its nested
+dependency. `TranslatorEditor.js` loads the local editor and local JSON/editor
+workers; the loader's default CDN would bypass the patched source. Keep the
+private sanitizer instance separate because Monaco modifies its hooks.
 
 Keep `package-lock.json` committed: the Docker build uses `npm ci`. The upstream
 ignore rules ignore lockfiles, so creating a replacement may require
@@ -236,7 +247,8 @@ ignore rules ignore lockfiles, so creating a replacement may require
 For a runtime update:
 
 1. Update the Node digest/npm version as needed. When changing Tailscale, update
-   every supported architecture's checksum together with `TAILSCALE_VERSION`.
+   the source archive checksum with `TAILSCALE_VERSION`, review the Go dependency
+   upgrades and toolchain digest, and verify every supported architecture.
    Overriding only the version will fail checksum verification.
 2. Keep npm/npx: PXPIPE installation and updater paths use them at runtime.
    Keep both Tailscale binaries and existing paths. Check for persistent
@@ -250,9 +262,88 @@ For a runtime update:
 5. Promote the verified image through the deployment workflow. Preserve the
    existing data volume, back it up, and check health and authenticated traffic.
 
-Builds are not byte-for-byte reproducible: `apk upgrade` uses the current Alpine
-repositories and the Tailscale download stage uses an Alpine tag. Record and
+Builds are not byte-for-byte reproducible: `apk add` and `apk upgrade` use the
+current Alpine repositories. Record and
 deploy the tested image digest; do not overwrite an already published tag.
+
+### Staging remediation, 2026-09-16
+
+Built Linux amd64 from base commit `7466e144` plus the dependency/security changes
+above. Published `pcc-staging/vansrouter:0.91.22-7466e144-security.2`, digest
+`sha256:a8c81a6abd113685de7aab6696a6aeb906204be7b57212cbd9fb9f929c6eb540`.
+This is a staging candidate, not a production deployment or release approval.
+The publisher cannot request scans (AK returns 403). The administrator-triggered
+verification scans completed, starting at 2026-09-16 15:34:10 UTC:
+
+| Source | Verification scan ID | Result |
+| --- | --- | --- |
+| Trivy | `8c34fe8e-3ec8-4392-8ac5-f1a029e5b051` | Completed: 2 high, both GO-2026-5932; down from 31 findings |
+| Grype | `8cf1845d-e4c4-4575-b87c-ca2cf237b687` | Completed: 3 medium, all CVE-2025-60876; down from 6 findings |
+| Dependency | `649c308a-2751-445d-aa5e-2c01694dfeb9` | Completed: 0 findings; does not replace image scanning |
+
+No new component/advisory pairs appeared in either image scanner. The reported
+DOMPurify, x/image and fixable x/crypto findings are absent. The separate
+`not_applicable` result is not clean-scan evidence. Registry metadata still
+matches the published candidate digest. Remaining findings were not suppressed.
+
+The baseline `0.91.22-7466e144-security.1` results were:
+
+| Source | Scan ID | Result |
+| --- | --- | --- |
+| Trivy | `61ce0017-ea34-4052-a6cb-731b33075dfc` | Completed: 0 critical, 6 high, 21 medium, 4 low |
+| Grype | `572d1387-9021-444d-9d15-7e468bea0996` | Completed: 0 critical, 3 high, 3 medium |
+| Dependency | `16efdabc-342f-4dcd-87f7-7f56e391c273` | Completed: 0 findings; does not replace image scanning |
+
+These scans started at 2026-09-16 14:27:27 UTC. Counts overlap and are not a
+unique vulnerability total. Original findings were not acknowledged/suppressed.
+The image source inventory and version-specific DTrack mapping are recorded in
+`security-inventory.yaml`.
+
+Validation: Docker build, native SQLite query, health/version, login, migrations,
+npm install/ci/npx as the node user, and Tailscale userspace daemon/socket startup
+passed. `go version -m` on both image binaries confirms the upgraded modules.
+The GHSA-55q2-fjhq-7xh7 browser reproducer executed with DOMPurify 3.2.7 and did
+not execute with 3.4.15; ordinary headings/links survived sanitization. Monaco's
+private sanitizer matches the official patched ESM bytes. Before and after
+`npm test`: 3164 passed, 5 failed, 82 skipped, with identical failure names. The
+five failures are macOS/Linux header snapshots and `/var` versus `/private/var`
+deployment assertions. Opt-in provider integration tests were not enabled.
+Chrome checks passed for local editor/worker loading, JSON formatting and
+diagnostics, plaintext editing and theme switching, with jsDelivr blocked and
+no page exceptions. The missing `vllm.webp` (404) and model-less translation
+request (500, `startsWith` on undefined) reproduced identically on both baseline
+and candidate images; those unrelated defects remain. Desktop and mobile
+screenshots were captured; mobile layout polish was not part of this patch.
+
+Remaining findings and coverage limits:
+
+- BusyBox CVE-2025-60876 has no fixed Alpine package in the Grype result; it is
+  unresolved. Alpine v3.24's current security database also lists no fix for this
+  CVE. Updating the Go/npm dependencies does not fix it.
+- GO-2026-5932 covers the unmaintained `golang.org/x/crypto/openpgp` packages.
+  Linux amd64 dependency traversal for both rebuilt commands contains none of
+  those imports. Repeating `go list -deps` in the cached Docker Tailscale stage,
+  using the pinned Go 1.26.8 toolchain with `CGO_ENABLED=0 GOOS=linux GOARCH=amd64`,
+  checked 828 package imports and confirmed their absence. Trivy's two high
+  module-level findings therefore do not identify linked OpenPGP code in these
+  binaries. The findings remain visible in AK.
+- DTrack's candidate findings endpoint returned 43 rows while its current metrics
+  recorded 23 findings (14 high, 5 medium, 4 unassigned). All 43 rows were checked
+  against upstream OSV ranges: 41 are outside the affected ranges; the other two
+  are the OpenPGP advisory above. The baseline had 60 endpoint rows and 32 metric
+  findings. These reporting discrepancies were not suppressed or counted as
+  vulnerabilities fixed by this patch. The DHCP advisory is absent from the
+  candidate findings.
+- DTrack's candidate BOM import timestamp is 15:34:44.252 UTC and its recorded
+  vulnerability analysis timestamp is 15:34:46.338 UTC on 2026-09-16. It reports
+  219 license-policy rows (117 allowlist checks, 102 empty/custom license-expression
+  checks) and two security-policy rows, versus 221 license and three security
+  rows for the baseline. These remain open; package upgrades do not establish
+  license compliance. No policy was relaxed.
+- Persisted `/app/data/bin/tailscaled` can override the bundled daemon. Existing
+  volumes require separate binary inspection before rollout. No production
+  volume or deployment was changed. Only Linux amd64 was built/tested; live
+  Funnel authentication/traffic and other architectures were not exercised.
 
 ### Recorded security result, 2026-09-13
 
