@@ -9,6 +9,33 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Production deployment, 2026-09-23
+
+After the operator promoted `0.91.30-writing.1` and requested deployment,
+production artifact metadata matched the tested digest
+`sha256:714672966583c07b42aa4f479027fc13c5b30cb82ca05e4216c4318bd0324f5f`.
+The registry Docker endpoint again lacked the promoted manifest. Pushing the
+identical image to `registry.pcc.fyi/pcc/vansrouter:0.91.30-writing.1` preserved
+that digest, and srv0 pulled it successfully before activation.
+
+The production Compose image is pinned to that tag and digest. Container
+`9router` is healthy, still mounting `9router_9router-data` at `/app/data`.
+Public version returns 0.91.30; health returns `{"ok":true}`. Dashboard access
+redirects to `/masuk`; OIDC initiation redirects to `https://sso.pandino.co/`.
+Full human OIDC sign-in was not tested. SQLite integrity is `ok`, API-key model
+discovery returns HTTP 200 with 44 models (43 before), and the checked API-key,
+OIDC and Caveman/Ponytail settings match the predeployment baseline.
+
+Before activation, a verified online SQLite backup and full volume snapshot
+were uploaded to `r2:pcc-9router/backups/pcc-soho-srv0/` as
+`predeploy-0.91.30.sqlite.gz` and `9router-volume-20260923.tar.gz`.
+Remote backups and `compose.previous.yaml` are retained under
+`/home/pcc/builds/vansrouter-0.91.30-deploy-20260923/`. Rollback uses that previous
+Compose file and the cached `0.91.22-7466e144-security.2` image with the same
+volume. The local deployment checkout's Compose image was updated as well;
+its other existing edits were preserved. Deployment does not establish a clean
+vulnerability scan or resolve the earlier scan-request authorization failure.
+
 ## Upstream synchronization and staging image, 2026-09-23
 
 Merge commit `8b147bfa3aa8e2253b5d186c8bdc6422c36f388b` includes all
