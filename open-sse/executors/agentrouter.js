@@ -9,7 +9,7 @@ export function buildAgentRouterHeaders(apiKey, stream = true) {
     "anthropic-beta": "claude-code-20250219,interleaved-thinking-2025-05-14,effort-2025-11-24",
     "anthropic-dangerous-direct-browser-access": "true",
     "x-app": "cli",
-    "User-Agent": "claude-cli/2.1.195 (external, sdk-cli)",
+    "User-Agent": "claude-cli/2.1.280 (external, sdk-cli)",
     "X-Claude-Code-Session-Id": randomUUID(),
     "X-Stainless-Retry-Count": "0",
     "X-Stainless-Timeout": "600",
