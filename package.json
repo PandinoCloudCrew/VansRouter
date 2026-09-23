@@ -1,6 +1,6 @@
 {
   "name": "vansrouter-app",
-  "version": "0.91.22",
+  "version": "0.91.30",
   "description": "9Router web dashboard",
   "private": true,
   "engines": {
@@ -31,9 +31,9 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@monaco-editor/react": "^4.7.0",
-    "@swc/helpers": "^0.5.15",
     "@next/env": "^16.1.6",
     "@next/third-parties": "^16.2.9",
+    "@swc/helpers": "^0.5.15",
     "@xyflow/react": "^12.10.1",
     "bcryptjs": "^3.0.3",
     "confbox": "^0.2.4",
@@ -49,8 +49,8 @@
     "ora": "^9.1.0",
     "playwright-core": "^1.60.0",
     "prop-types": "^15.8.1",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "recharts": "^3.7.0",
     "sql.js": "^1.14.1",
     "undici": "^7.19.2",
@@ -74,11 +74,11 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4",
+    "eslint-config-next": "16.3.6",
     "eslint-plugin-react-hooks": "^7.1.1",
     "js-yaml": "^4.2.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4",
     "vitest": "^3.2.4"
   }
 }

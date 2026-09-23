@@ -1,11 +1,11 @@
 # syntax=docker/dockerfile:1.7
-ARG NODE_IMAGE=node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
+ARG NODE_IMAGE=node:22-alpine@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85
 FROM ${NODE_IMAGE} AS base
 WORKDIR /app
 
 # Refresh installed Alpine packages and npm's bundled dependencies in both stages.
 # npm/npx remain available for runtime PXPIPE installation and CLI updates.
-ARG NPM_VERSION=11.19.1
+ARG NPM_VERSION=11.20.0
 RUN apk upgrade --no-cache && \
   npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund && \
   npm cache clean --force
@@ -13,7 +13,7 @@ RUN apk upgrade --no-cache && \
 # Build Next.js on the host CPU; compile SQLite separately for the target.
 FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS builder
 WORKDIR /app
-ARG NPM_VERSION=11.19.1
+ARG NPM_VERSION=11.20.0
 RUN apk upgrade --no-cache && \
   npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund && \
   npm cache clean --force
