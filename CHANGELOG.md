@@ -1,5 +1,25 @@
 # v0.91.30 (2026-09-23)
 
+## PCC fork image 0.91.30-writing.1
+
+- **Upstream synchronization**: Merged upstream v0.91.30 into
+  `codex/writing-plugins`, preserving the independent writing plugins, local
+  Monaco sanitizer, runtime security patches and persistent data volume.
+- **Dependencies**: Updated Next.js and related packages to 16.3.6, React and
+  React DOM to 19.3.0, DOMPurify to 3.4.16, compatible transitive dependencies,
+  Node 22 Alpine to the current pinned digest and runtime npm to 11.20.0.
+  Refreshed npm and pnpm lockfiles. Compatibility-breaking updates remain deferred.
+- **Build and tests**: Linux amd64 production image built; 3,530 tests passed,
+  82 skipped, zero failures. The fork-focused suite passed 106 tests. Container
+  health, login, writing settings, API-key access, SQLite integrity, npm/npx and
+  Tailscale userspace startup passed. Application and image SBOMs were generated.
+- **Coverage and publication**: The macOS suite has six failures reproduced on
+  pristine upstream; all six pass on Linux. ARM64 runtime, browser UI and opt-in
+  provider integration were not verified. The immutable image is published to
+  `registry.pcc.fyi/pcc-staging/vansrouter:0.91.30-writing.1`; normal digest pull
+  passed. AK scan triggering returned HTTP 403, so production promotion and
+  deployment remain pending. Full evidence and digest: `FORK-MAINTENANCE.md`.
+
 ## Features
 
 - **Upstream sync queue** — Landed the 28-item adoption queue from the `83af3f18` → `21583c03e` (v0.5.85) triage: provider and model coverage, translator and stream fixes, capability metadata, CLI-tool cards, analytics, combo presets, and the Qoder, CommandCode, OpenCode, Antigravity, Kiro and Cursor provider fixes. Every item was classified ADOPT / SKIP / HYBRID against the fork's custom logic before landing, and the triage reports are committed under `.docs/audit/`.
