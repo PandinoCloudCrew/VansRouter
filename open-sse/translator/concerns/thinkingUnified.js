@@ -4,6 +4,7 @@
 
 import { getCapabilitiesForModel } from "../../providers/capabilities.js";
 import { PROVIDERS } from "../../providers/index.js";
+import { getThinkingLevels } from "../../providers/thinkingLevels.js";
 import { LEVEL_TO_BUDGET, budgetToLevel, effortToBudget, effortToThinkingLevel } from "./thinking.js";
 
 // Map a target wire-format to its native thinking format (when capability has none).
@@ -220,7 +221,7 @@ function stripAll(body) {
 }
 
 // Apply unified thinking config to body in the resolved provider-native format.
-function applyFormat(fmt, body, cfg, caps) {
+function applyFormat(fmt, body, cfg, caps, supportedLevels) {
   const none = cfg.mode === "none";
   const canDisable = caps.thinkingCanDisable !== false;
   // Model cannot disable thinking → clamp "none" to minimal effort instead.
@@ -293,9 +294,12 @@ function applyFormat(fmt, body, cfg, caps) {
     case "deepseek": {
       if (none && canDisable) { body.thinking = { type: "disabled" }; break; }
       body.thinking = { type: "enabled" };
-      // DeepSeek: low/medium→high, xhigh/max→max.
+      // DeepSeek: low/medium→high, xhigh/max→max. Some backends (mimo v2.5-pro/v2.6
+      // on opencode-go, probed live) 400 on "max" — clamp to high when the declared
+      // levels exclude it.
       const level = toLevel(eff);
-      body.reasoning_effort = level === "xhigh" || level === "max" ? "max" : "high";
+      const want = level === "xhigh" || level === "max" ? "max" : "high";
+      body.reasoning_effort = want === "max" && supportedLevels && !supportedLevels.includes("max") ? "high" : want;
       break;
     }
     case "kimi": {
@@ -378,6 +382,8 @@ export function applyThinking(targetFormat, model, body, provider = null, intent
   }
 
   stripAll(body);
-  applyFormat(fmt, body, effectiveCfg, caps);
+  // Declared level ceiling for this model, so a format's effort mapping can clamp
+  // a level the model rejects (e.g. deepseek "max" on the mimo v2.5-pro/v2.6 backends).
+  applyFormat(fmt, body, effectiveCfg, caps, getThinkingLevels(provider, cleanModel));
   return body;
 }

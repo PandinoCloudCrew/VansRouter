@@ -42,6 +42,11 @@ const PATTERN_THINKING = [
   { pattern: "*gpt-5.6-sol*", levels: ["none", "minimal", "low", "medium", "high", "xhigh", "max"] },
   { pattern: "*claude*opus-5*", levels: L.levelMax },
   { pattern: "*codex*", levels: ["low", "medium", "high", "xhigh"] }, // codex cannot disable thinking
+  // mimo-v2.5-pro/v2.6 on the opencode-go lane return 400 on reasoning_effort
+  // "max" (probed live); plain mimo-v2.5 accepts it. Declaring the ceiling here
+  // is what lets applyFormat's deepseek case clamp "max" down to "high".
+  { pattern: "*mimo*v2.6*", levels: ["none", "low", "medium", "high", "xhigh"] },
+  { pattern: "*mimo*v2.5-pro*", levels: ["none", "low", "medium", "high", "xhigh"] },
   // V4.1 Flash accepts real per-level effort on both routes (the older v4 family
   // only distinguishes high/max), so the picker exposes the full range.
   { provider: "deepseek", pattern: "*deepseek-v4.1-flash*", levels: ["none", "low", "medium", "high", "xhigh", "max"] },
