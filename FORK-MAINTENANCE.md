@@ -9,6 +9,67 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Upstream synchronization and staging image, 2026-09-23
+
+Merge commit `8b147bfa3aa8e2253b5d186c8bdc6422c36f388b` includes all
+history through upstream v0.91.30 (`a4b18802`) on `codex/writing-plugins`.
+Both package versions are 0.91.30. The fork image version is
+`0.91.30-writing.1`; no upstream release tag or npm package was published.
+
+The chat-handler conflict preserves the independent writing settings and adds
+upstream's `clientBodyBytes` parameter. The Docker conflict retains the fork's
+lockfile-based native dependency installation and security-updated base instead
+of upstream's separate, unlocked SQLite install. Writing prompts, Monaco's local
+sanitizer patch, rebuilt Tailscale binaries and persistent volume names remain.
+
+Dependency refresh: Next.js and its related packages 16.3.6, React/React DOM
+19.3.0 in both packages, DOMPurify 3.4.16, marked 18.0.14, open 11.0.4,
+compatible transitive updates, Node 22.23.2 and npm 11.20.0. Both npm lockfiles
+and the pnpm lockfile were refreshed. Tailscale stable remains 1.102.4.
+Updates outside existing compatibility ranges were reviewed but deferred:
+better-sqlite3, confbox, ESLint, js-yaml, material-symbols, Monaco, undici,
+uuid, Vitest, and the CLI's esbuild/open. No claim of a clean vulnerability scan
+is made from dependency freshness.
+
+Published and verified by normal Docker pull:
+
+`registry.pcc.fyi/pcc-staging/vansrouter:0.91.30-writing.1@sha256:714672966583c07b42aa4f479027fc13c5b30cb82ca05e4216c4318bd0324f5f`
+
+The Linux amd64 image labels identify source commit `8b147bfa` and the fork
+repository. Production promotion is pending: AK's scan request returned HTTP
+403 on 2026-09-23, correlation ID `c35df8934875982e0d8083e12a296d84`.
+The repository scan listing contained no scans for this version. An authorized
+operator must complete the image scans before promotion. No production container,
+deployment configuration, database or volume was changed.
+
+Verification:
+
+- Linux amd64 full suite: 304 files passed, 3,530 tests passed, 82 skipped,
+  zero failures. The Next.js production build and native SQLite query passed.
+- macOS before synchronization: 3,164 passed, five failed, 82 skipped. After
+  synchronization and updates: 3,524 passed, six failed, 82 skipped. Pristine
+  upstream with the same updated dependencies: 3,504 passed, the same six
+  failures, 82 skipped. Failure names were compared directly. They cover two
+  Linux header snapshots, three `/var` versus `/private/var` assertions and
+  the new SQLite fixture's rejected macOS temporary path. All pass on Linux.
+- An intermediate macOS run also hit a MiMo live bootstrap connection timeout;
+  the final run passed that test. Opt-in provider tests remain skipped.
+- Fork-focused suite: 106 tests passed in seven files. Undefined-variable lint
+  and Git whitespace checks passed; the Linux suite includes the hooks lint gate.
+- Disposable-container health/version, password login, independent writing
+  toggles, invalid boolean rejection, API-key models access, migrations and
+  SQLite integrity passed. Health/auth/settings checks were repeated on the
+  final labeled image. npm install/ci/npx as the node user and Tailscale userspace
+  startup (`NeedsLogin`) passed before the metadata-only labeling build.
+- Bundled application CycloneDX 1.5 SBOM contains 189 dependency records.
+  Syft generated final-image CycloneDX 1.5 and native JSON inventories with
+  1,005 components and 479 package records respectively. Inventory generation
+  is not vulnerability scanning. Evidence is in
+  `/tmp/vansrouter-sync-20260923/` on the build workstation.
+
+ARM64 runtime, browser UI, full external-provider integration and production
+deployment were not verified for this image.
+
 ## Upstream synchronization, 2026-09-15
 
 `codex/writing-plugins` now includes upstream v0.91.22, commit
