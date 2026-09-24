@@ -1,3 +1,25 @@
+# v0.91.33 (2026-09-25)
+
+## Features
+
+- **TokenHarbor provider integration** — Added `tokenharbor` provider (`open-sse/providers/registry/tokenharbor.js`, priority `118`, alias `th`/`tokenharbor`), connecting to `https://tokenharbor.ai/v1`. Supports multi-transport routing across standard OpenAI `/v1/chat/completions`, native Claude `/v1/messages` (with `x-api-key` and `anthropic-version`), OpenAI Responses `/v1/responses`, and image generations `/v1/images/generations`. Includes native model catalog (`th-orchestra`, `claude-opus-5`, `claude-sonnet-5`, `deepseek-v4-flash`, etc.) with passthrough model support and dynamic catalog fetch from `https://tokenharbor.ai/v1/models`.
+
+## Reliability & Compatibility
+
+- **Cursor ConnectRPC trailer error handling (Issue #131)** — Fixed silent 0-token empty turn responses (`OUT 0`, `content: null`) in `open-sse/executors/cursor.js`. Previously, `decodeAgentFrames` dropped ConnectRPC trailer frames (`flags & 0x02`), silently discarding upstream error responses (e.g., quota exhaustion, rate limits, or free tier restrictions) as empty success. ConnectRPC trailer error frames are now parsed and surfaced properly as HTTP 429/400 errors.
+- **Cursor model resolution in executeAgent** — Resolved upstream model targeting in `executeAgent` via `resolveCursorUpstreamModel(model)` so `"default"` and `"cu/default"` map to `claude-4.5-sonnet` instead of forwarding an unmapped placeholder to the backend.
+- **Cursor client fingerprint update** — Bumped `x-cursor-client-version` to `3.13.25` and `x-cursor-client-commit` to `d5c0e77a0214208f36b56d42e8e787de88d02ea4` in `open-sse/utils/cursorChecksum.js` and `open-sse/providers/registry/cursor.js` to match current Cursor IDE releases.
+- **Cursor direct HTTP/2 catalog fetch** — Eliminated doomed HTTP/1 `fetch()` attempt against HTTP/2-only `agent.api5.cursor.sh` in `open-sse/services/cursorModels.js`, connecting directly via HTTP/2 multiplexing.
+- **Cursor token expiration check** — `testOAuthConnection` in `src/app/api/providers/[id]/test/testUtils.js` now validates the JWT `exp` claim for Cursor credentials, rejecting expired tokens immediately instead of false-positive passes.
+- **Cursor Agent Protobuf defensive decoding** — Guarded map pair decoding in `open-sse/utils/cursorAgentProtobuf.js` to handle malformed protobuf frames safely.
+
+## Tests
+
+- Added `tests/unit/tokenharbor-provider.test.js` verifying provider transport registration, authentication headers, and aliases.
+- Added `tests/unit/cursor-test-connection.test.js` validating JWT expiration checking for Cursor auth.
+- Extended `tests/unit/cursor-agent-proto.test.js` with ConnectRPC trailer error parsing and model resolution test cases.
+- Updated `tests/unit/cursor-models.test.js` with direct HTTP/2 mock verification and refreshed golden header snapshots for v0.91.33.
+
 # v0.91.32 (2026-09-24)
 
 ## Reliability & Performance
