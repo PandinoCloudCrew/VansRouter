@@ -1,3 +1,19 @@
+# v0.91.32 (2026-09-24)
+
+## Reliability & Performance
+
+- **LoopGuard event loop freeze fix (Issue #132)** — Resolved an $O(N^4)$ polynomial search trap in `open-sse/utils/loopGuard.js` where `detectSequenceRepeat` previously performed unconstrained combinatorial window slicing across all historical messages in long agent sessions (>600 messages / >700KB bodies), freezing Node.js's main event loop for >160 seconds and causing container termination (exitCode=137 by Docker watchdog). Bounded sequence detection to `RECENT_TOOL_WINDOW = 40` and `MAX_SEQUENCE_LENGTH = 6`. Execution time on 1,200 messages dropped from 165,557ms to 25ms.
+- **LoopGuard deep-key argument normalization** — `normalizeArgs` now uses recursive object key sorting instead of `JSON.stringify(obj, keys)` array replacers (which stripped nested properties by ECMAScript spec), preventing distinct tool calls with nested arguments from falsely colliding and triggering loop aborts.
+- **LoopGuard per-message sentence deduplication** — `detectTextRepeat` wraps sentence counts per message in a unique `Set`, preventing intra-turn markdown tables, repeated list bullets, or separator rows within a single assistant message from falsely triggering loop detection. Messages larger than 4KB (code/diff dumps) skip sentence-level splitting to prevent main-thread regex spikes.
+- **Provider format detection optimization** — In `open-sse/services/provider.js`, replaced synchronous `body.messages.flatMap()` and triple `.some()` scans on multimodal payloads with a short-circuiting `for..of` loop with early exit on first image or tool match, eliminating massive heap allocations and CPU latency on large histories.
+- **Linux runtime detection fix (Issue #141)** — Removed the `/run/systemd/system` filesystem check in `src/shared/utils/runtime.js` that previously caused ordinary interactive terminal sessions on Linux to be falsely detected as systemd services. Runtime detection now checks `INVOCATION_ID` or `JOURNAL_STREAM`, returning `"direct"` for terminal executions and preventing unintended `sudo systemctl restart` commands.
+
+## Tests
+
+- Extended `tests/unit/loop-guard.test.js` with 1,200-message / 600-tool-call performance benchmarks (<50ms limit), nested argument preservation assertions, and intra-message table repeat tolerance tests.
+- Updated `tests/unit/runtime-detect.test.js` to assert `"direct"` runtime for interactive Linux shells.
+- Refreshed version-bearing golden headers for 0.91.32. Full suite passes: 304 files passed / 13 skipped, 3524 tests passed, 0 failures.
+
 # v0.91.31 (2026-09-24)
 
 ## Features
