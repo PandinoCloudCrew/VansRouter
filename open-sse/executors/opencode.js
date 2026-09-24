@@ -1,17 +1,22 @@
 import { BaseExecutor } from "./base.js";
 import { PROVIDERS } from "../config/providers.js";
-import { getThinkingLevels } from "../providers/thinkingLevels.js";
 import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
-import { ANTHROPIC_API_VERSION } from "../providers/shared.js";
+import { ANTHROPIC_API_VERSION, applyAuth, BEARER_AUTH } from "../providers/shared.js";
+import { resolveTransport } from "../services/provider.js";
+import { baseModelId, normalizeOpencodeReasoning } from "../utils/opencodeIdentity.js";
 import crypto from "node:crypto";
 import { resolveSessionId } from "../utils/sessionManager.js";
 import { applyFingerprintToolNames } from "../utils/opencodeFingerprint.js";
-import { getModelTargetFormat } from "../config/providerModels.js";
+import { getModelTargetFormat, PROVIDER_MODELS, PROVIDER_ID_TO_ALIAS } from "../config/providerModels.js";
 
 // OpenCode free tier limits requests per egress IP.
 const IP_LIMIT_BODY = /limit|rate|quota|exhausted|capacity|too many|retry/i;
 
 const OPENCODE_UA = "opencode/1.18.31";
+
+// Lane → registry transport format / shared /zen/v1 path (free lane has no transports).
+const LANE_FORMAT = { chat: "openai", claude: "claude", responses: "openai-responses" };
+const LANE_PATH = { chat: "/chat/completions", claude: "/messages", responses: "/responses" };
 
 // The free tier gates on the lowercase file-search quartet: every request must
 // declare bash/glob/grep/read exactly once. See utils/opencodeFingerprint.js.
@@ -85,17 +90,17 @@ function generateSessionId() {
   return `ses_${timeHex(~(BigInt(Date.now()) * 0x1000n))}${randomPart()}`;
 }
 
-// Strip the thinking suffix "model(level)" so registry lookups hit the base id.
-function baseModelId(model) {
-  return String(model || "").replace(/\([^()]+\)\s*$/, "").trim();
-}
-
-function isResponsesModel(model) {
-  return getModelTargetFormat("oc", baseModelId(model)) === "openai-responses";
-}
-
-function isMessagesModel(model) {
-  return getModelTargetFormat("oc", baseModelId(model)) === "claude";
+// Declared lane for a model: primary registry alias (oc free lane / ocz keyed
+// zen lane), then the oc registry for passthrough ids the keyed catalog doesn't
+// list ("-free" ids served on both lanes).
+function modelFormat(alias, model) {
+  const clean = baseModelId(model);
+  const fmt = getModelTargetFormat(alias, clean);
+  if (fmt) return fmt;
+  if (alias !== "oc" && !(PROVIDER_MODELS[alias] || []).some((m) => m.id === clean)) {
+    return getModelTargetFormat("oc", clean);
+  }
+  return null;
 }
 
 // Decoy shape follows the lane: Responses takes flat entries, Chat Completions
@@ -138,40 +143,38 @@ function resolveOpencodeSession(body, credentials) {
   });
 }
 
-function normalizeOpencodeReasoning(model, body) {
-  const current = body.reasoning;
-  const currentReasoning = current && typeof current === "object" && !Array.isArray(current)
-    ? current
-    : null;
-  const requestedEffort = typeof body.reasoning_effort === "string"
-    ? body.reasoning_effort
-    : currentReasoning?.effort;
-  if (typeof requestedEffort !== "string") return;
-
-  const cleanModel = baseModelId(model || body.model);
-  const supportedLevels = getThinkingLevels("opencode", cleanModel);
-  let effort = requestedEffort.toLowerCase().trim();
-  if ((effort === "max" || effort === "ultra") && supportedLevels?.length && !supportedLevels.includes(effort)) {
-    if (effort === "ultra" && supportedLevels.includes("max")) effort = "max";
-    else if (supportedLevels.includes("xhigh")) effort = "xhigh";
+export class OpenCodeExecutor extends BaseExecutor {
+  constructor(provider = "opencode") {
+    super(provider, PROVIDERS[provider]);
+    this.modelAlias = PROVIDER_ID_TO_ALIAS[provider] || provider;
+    this.origin = new URL(this.config.baseUrl).origin;
   }
 
-  body.reasoning = { ...currentReasoning, effort };
-  if (!body.reasoning.summary) body.reasoning.summary = "auto";
-  delete body.reasoning_effort;
-}
-export class OpenCodeExecutor extends BaseExecutor {
-  constructor() {
-    super("opencode", PROVIDERS.opencode);
+  // Request lane ("responses" | "claude" | "chat"): responses-only models never
+  // move (a stale runtimeTransport must not downgrade them — same rule as
+  // opencode-go), then the source-format transport chatCore picked, else the
+  // model's declared lane.
+  laneFor(model, credentials) {
+    if (modelFormat(this.modelAlias, model) === "openai-responses") return "responses";
+    const rtFormat = credentials?.runtimeTransport?.format;
+    if (rtFormat === "openai-responses") return "responses";
+    if (rtFormat === "claude") return "claude";
+    if (rtFormat === "openai") return "chat";
+    return modelFormat(this.modelAlias, model) === "claude" ? "claude" : "chat";
   }
 
   transformRequest(model, body, stream, credentials) {
+    // Zen's free tier 403s any non-streaming body; the identity
+    // openai-to-openai translator never writes body.stream — pin it here
+    // (same convention as codex/commandcode/grok-cli executors).
+    if (stream) body.stream = true;
     this._currentSessionId = translateSessionId(
       resolveOpencodeSession(body, credentials),
       credentials?.rawHeaders?.["x-opencode-client"],
     );
     if (credentials) credentials.runtimeOpencodeSession = this._currentSessionId;
-    if (isResponsesModel(model)) {
+    const lane = this.laneFor(model, credentials);
+    if (lane === "responses") {
       // ponytail: only the model confirmed auto-only; widen the allowlist when
       // there is evidence for another one.
       if ("tool_choice" in body && body.tool_choice !== "auto"
@@ -188,16 +191,16 @@ export class OpenCodeExecutor extends BaseExecutor {
       delete body.max_completion_tokens;
       normalizeOpencodeReasoning(model, body);
     }
-    const lane = isResponsesModel(model) ? "responses" : isMessagesModel(model) ? "claude" : "chat";
     cloakFingerprintTools(body, lane);
     return injectReasoningContent({ provider: this.provider, model, body });
   }
 
-  buildUrl(model) {
-    const base = this.config.baseUrl;
-    if (isResponsesModel(model)) return `${base}/zen/v1/responses`;
-    if (isMessagesModel(model)) return `${base}/zen/v1/messages`;
-    return `${base}/zen/v1/chat/completions`;
+  buildUrl(model, stream, urlIndex = 0, credentials = null) {
+    const lane = this.laneFor(model, credentials);
+    // Registry declares the keyed lane's endpoints; the free lane has no
+    // transports, so it falls back to the shared /zen/v1 root.
+    return resolveTransport(this.provider, LANE_FORMAT[lane])?.baseUrl
+      || `${this.origin}/zen/v1${LANE_PATH[lane]}`;
   }
 
   buildHeaders(credentials, stream = true, model) {
@@ -215,7 +218,6 @@ export class OpenCodeExecutor extends BaseExecutor {
       || generateRequestId();
     const headers = {
       "Content-Type": "application/json",
-      "Authorization": "Bearer public",
       "User-Agent": hasValidOpencodeVersion(raw["user-agent"]) ? raw["user-agent"] : OPENCODE_UA,
       "x-opencode-client": raw["x-opencode-client"] || "desktop",
       "x-opencode-session": session,
@@ -223,14 +225,19 @@ export class OpenCodeExecutor extends BaseExecutor {
       "x-opencode-project": raw["x-opencode-project"] || "global",
       "Accept": stream ? "text/event-stream" : "*/*"
     };
-    if (isMessagesModel(model)) headers["anthropic-version"] = ANTHROPIC_API_VERSION;
+    // Per-transport contract when chatCore picked one (zen claude: x-api-key raw
+    // + version; else Bearer); the free lane carries no key → "Bearer public".
+    applyAuth(headers, credentials?.runtimeTransport?.auth || BEARER_AUTH, credentials || {});
+    if (this.laneFor(model, credentials) === "claude" && !headers["anthropic-version"]) {
+      headers["anthropic-version"] = ANTHROPIC_API_VERSION;
+    }
     return headers;
   }
 
   parseError(response, bodyText) {
     const status = response?.status || 0;
     const text = String(bodyText || "");
-    if ((status === 429 || status === 403) && IP_LIMIT_BODY.test(text)) {
+    if (this.provider === "opencode" && (status === 429 || status === 403) && IP_LIMIT_BODY.test(text)) {
       return {
         status,
         message: text.slice(0, 300) || `OpenCode free limit (${status})`,

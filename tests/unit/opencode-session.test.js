@@ -4,6 +4,7 @@ import {
   translateRequestId,
   translateSessionId,
 } from "../../open-sse/executors/opencode.js";
+import { PROVIDERS } from "../../open-sse/config/providers.js";
 
 // OpenCode's free tier (403 FreeTierError) requires UA version >= 1.17.0 and
 // canonical ses_/msg_ id formats.
@@ -103,5 +104,11 @@ describe("OpenCode free-tier request identity", () => {
     };
     executor.transformRequest("big-pickle", { messages: [{ role: "user", content: "hi" }] }, true, credentials);
     assertCanonical(credentials.runtimeOpencodeSession, "ses");
+  });
+
+  // The free tier 403s a non-streaming body; chatCore reads this flag to force
+  // upstream streaming and aggregate the SSE back for non-stream clients.
+  it("declares forceStream on the free-lane registry entry", () => {
+    expect(PROVIDERS.opencode.forceStream).toBe(true);
   });
 });
