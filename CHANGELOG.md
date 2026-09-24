@@ -1,3 +1,31 @@
+# v0.91.31 (2026-09-24)
+
+## Features
+
+- **OpenCode Zen keyed lane** — `OpenCodeExecutor` now serves both OpenCode providers: the keyless free lane (`opencode`) and the keyed Zen lane (`opencode-zen`, aliases `ocz`). The executor carries the official-client fingerprint (pinned `opencode/1.18.31` User-Agent, canonical `ses_`/`msg_` ids, cloaked bash/glob/grep/read tool quartet) while sending the user's own API key instead of `Bearer public`, so paid Zen models work without the free tier's client-identity 403. Lane routing picks `/zen/v1/chat/completions`, `/zen/v1/messages` or `/zen/v1/responses` from the source-format transport chatCore selected, falling back to the model's declared registry format; responses-only models never downgrade, and the Claude transport applies its own `x-api-key` + `anthropic-version` contract.
+
+## Reliability & Compatibility
+
+- **Forced upstream streaming** — `opencode-zen` declares `forceStream: true`, mirroring the free lane: Zen's free tier rejects non-streaming bodies, so chatCore forces SSE upstream and aggregates it back to JSON for non-stream clients. `transformRequest` also pins `body.stream` from the transport's stream flag because the identity openai-to-openai translator never writes it.
+- **Free-tier limit messages** — the IP-limit 429/403 rewrite is now scoped to the keyless free lane (`provider === "opencode"`); keyed-lane errors keep the upstream text.
+
+## Release Infrastructure
+
+- **Dockerfile ownership scope** — the runtime stage now chowns only the writable paths (`/app/data`, `/app/data-home`, `/app/.next`) instead of all of `/app`, keeping the same write access for the `node` process while avoiding a recursive chown over `node_modules`.
+
+## Code Quality
+
+- **Shared auth application** — `applyAuth`/`setAuth` moved from `open-sse/executors/default.js` into `open-sse/providers/shared.js` and reused by `default.js`, `opencode.js` and `opencode-go.js`, deleting three copies of the scheme/`anthropicVersion` branch. Registry `transport.auth` descriptors remain the single source of truth.
+- **Registry-driven lane URLs** — `OpenCodeExecutor.buildUrl` resolves the keyed lane's endpoint through `resolveTransport(provider, format)` instead of re-hardcoding the `/zen/v1/*` paths next to the registry.
+- **Shared OpenCode helpers** — `baseModelId` and the Responses-lane reasoning normaliser moved to `open-sse/utils/opencodeIdentity.js`, removing byte-identical copies in `opencode.js` and `opencode-go.js`.
+- **Dead code and dead dependency** — deleted `open-sse/executors/antigravity/sseCollect.js` (149 lines) and `open-sse/handlers/responsesHandler.js` (99 lines), neither referenced by runtime code, and dropped the unused `uuid` dependency (zero imports; `crypto.randomUUID()` is used where an id is needed).
+
+## Tests
+
+- Added `tests/unit/opencode-zen-executor.test.js` (executor registration under id and alias, forced streaming, `body.stream` pinning, keyed fingerprint headers, tool-quartet cloaking, lane URL routing, Claude transport auth, keyless free lane).
+- Extended `tests/unit/opencode-session.test.js` with the free lane's `forceStream` registry contract and refreshed the version-bearing golden headers for 0.91.31.
+- Full suite on the release commit: 304 files passed / 13 skipped, 3519 tests passed / 82 skipped, 0 failures (`npx vitest run -c tests/vitest.config.js`); `node scripts/build.js` completed with `build complete`. Provider behaviour is covered by unit-level wire assertions only — no live OpenCode Zen account was exercised for this release.
+
 # v0.91.30 (2026-09-23)
 
 ## Features
