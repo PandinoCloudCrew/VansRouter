@@ -16,6 +16,8 @@ import {
   CursorExecutor,
   isAgentCapableRequest,
   buildAgentRunFrame,
+  resolveCursorUpstreamModel,
+  decodeAgentFrames,
 } from "../../open-sse/executors/cursor.js";
 
 // AgentService (agent.v1) codec tests — validate the production implementation
@@ -23,6 +25,7 @@ import {
 // Field numbers verified against Cursor's agent.proto (extracted via @oh-my-pi).
 
 const LEN = 2;
+const VALUE = { NULL: 1, NUMBER: 2, STRING: 3, BOOL: 4, STRUCT: 5, LIST: 6 };
 // McpArgs.args map entry { field1: key, field2: Value }
 const entry = (k, v) => Buffer.concat([
   Buffer.from(encodeField(2, LEN,
@@ -50,6 +53,22 @@ describe("Cursor AgentService codec (cursorProtobuf.js)", () => {
         expect(decodeAgentValue(encodeAgentValue(value))).toEqual(value);
       });
     }
+
+    it("returns null when no known field matches", () => {
+      const unknownField = encodeField(99, VARINT, 1);
+      expect(decodeAgentValue(unknownField)).toBeNull();
+      expect(decodeAgentValue(new Uint8Array())).toBeNull();
+    });
+
+    it("defensively skips struct entries missing key or value", () => {
+      // Entry with only key (missing field 2)
+      const missingVal = encodeField(VALUE.STRUCT, LEN, encodeField(1, LEN, encodeField(1, LEN, "orphan")));
+      expect(decodeAgentValue(missingVal)).toEqual({});
+
+      // Entry with only value (missing field 1)
+      const missingKey = encodeField(VALUE.STRUCT, LEN, encodeField(1, LEN, encodeField(2, LEN, encodeAgentValue("val"))));
+      expect(decodeAgentValue(missingKey)).toEqual({});
+    });
   });
 
   describe("McpToolDefinition", () => {
@@ -129,6 +148,19 @@ describe("Cursor AgentService codec (cursorProtobuf.js)", () => {
         Buffer.from(encodeField(5, LEN, "noop")),
       ]);
       expect(decodeMcpArgs(mcpArgs).args).toEqual({});
+    });
+
+    it("defensively skips malformed map entries missing key or value", () => {
+      const incompleteEntries = Buffer.concat([
+        Buffer.from(encodeField(2, LEN, encodeField(1, LEN, "keyOnly"))),
+        Buffer.from(encodeField(2, LEN, encodeField(2, LEN, encodeAgentValue("valOnly")))),
+        entry("valid", "ok"),
+      ]);
+      const mcpArgs = Buffer.concat([
+        Buffer.from(encodeField(1, LEN, "test_tool")),
+        incompleteEntries,
+      ]);
+      expect(decodeMcpArgs(mcpArgs).args).toEqual({ valid: "ok" });
     });
   });
 
@@ -289,6 +321,17 @@ describe("Cursor AgentService executor helpers (cursor.js)", () => {
       expect(userAction.has(7)).toBe(true); // conversation_history (field 7)
       const history = decodeMessage(userAction.get(7)[0].value);
       expect(history.get(1).length).toBeGreaterThanOrEqual(2); // prior turns
+    });
+  });
+
+  describe("resolveCursorUpstreamModel", () => {
+    it("resolves cu/default and cu/auto to a valid upstream model instead of passing raw default", () => {
+      const defaultResolved = resolveCursorUpstreamModel("cu/default");
+      const autoResolved = resolveCursorUpstreamModel("cu/auto");
+      expect(defaultResolved).not.toBe("default");
+      expect(autoResolved).not.toBe("auto");
+      expect(defaultResolved).toBe("claude-4.5-sonnet");
+      expect(autoResolved).toBe("claude-4.5-sonnet");
     });
   });
 });
@@ -476,5 +519,104 @@ describe("CursorExecutor AgentService exec_request handling", () => {
     const events = parseAgentSSE(await result.response.text());
     const content = events.map((e) => e.choices?.[0]?.delta?.content || "").join("");
     expect(content).toBe("hello from grok");
+  });
+
+  describe("Connect-RPC trailer error handling", () => {
+    function createTrailerFrame(payloadObj = { error: { code: "resource_exhausted", message: "Free tier quota exceeded" } }) {
+      const errorPayload = Buffer.from(JSON.stringify(payloadObj));
+      const header = Buffer.alloc(5);
+      header[0] = 0x02; // Connect-RPC trailer flag
+      header.writeUInt32BE(errorPayload.length, 1);
+      return Buffer.concat([header, errorPayload]);
+    }
+
+    it("surfaces Connect error payload through frame decoder", () => {
+      const trailerFrame = createTrailerFrame();
+      const frames = [];
+      decodeAgentFrames(trailerFrame, (payload, meta) => {
+        frames.push({ payload, meta });
+      });
+
+      expect(frames.length).toBe(1);
+      expect(frames[0].meta?.isTrailer).toBe(true);
+      expect(frames[0].meta?.error?.code).toBe("resource_exhausted");
+      expect(frames[0].meta?.error?.message).toBe("Free tier quota exceeded");
+    });
+
+    it("surfaces Connect trailer error in executor.executeAgent without swallowing into choices with content null", async () => {
+      const trailerFrame = createTrailerFrame();
+      const { result } = await runAgent({
+        frames: [trailerFrame],
+        stream: false,
+      });
+
+      expect(result.response.status).not.toBe(200);
+      expect(result.response.status).toBe(429);
+      const payload = await result.response.json();
+      expect(payload).not.toHaveProperty("choices");
+      expect(payload.error).toBeDefined();
+      expect(payload.error.message).toContain("Free tier quota exceeded");
+      expect(payload.error.type).toBe("rate_limit_error");
+    });
+
+    it("surfaces Connect trailer error in streaming executor.executeAgent without emitting content null", async () => {
+      const trailerFrame = createTrailerFrame();
+      const { result } = await runAgent({
+        frames: [trailerFrame],
+        stream: true,
+      });
+
+      const bodyText = await result.response.text();
+      expect(bodyText).toContain("Free tier quota exceeded");
+      const events = parseAgentSSE(bodyText);
+      const errorEvent = events.find((e) => e.error);
+      expect(errorEvent).toBeDefined();
+      expect(errorEvent.error.message).toContain("Free tier quota exceeded");
+      const nullChoice = events.find((e) => e.choices?.[0]?.message?.content === null);
+      expect(nullChoice).toBeUndefined();
+    });
+
+    it("resolves default and cu/default to claude-4.5-sonnet in executeAgent written frame", async () => {
+      const { written: writtenDefault } = await runAgent({
+        model: "default",
+        frames: [textFrame("hi")],
+        stream: false,
+      });
+      expect(writtenDefault.length).toBeGreaterThan(0);
+      expect(writtenDefault[0].toString("utf8")).toContain("claude-4.5-sonnet");
+
+      const { written: writtenCuDefault } = await runAgent({
+        model: "cu/default",
+        frames: [textFrame("hi")],
+        stream: false,
+      });
+      expect(writtenCuDefault.length).toBeGreaterThan(0);
+      expect(writtenCuDefault[0].toString("utf8")).toContain("claude-4.5-sonnet");
+    });
+
+    it("does not throw Cannot error a closed stream if stream throws after error frame closes controller", async () => {
+      const trailerFrame = createTrailerFrame();
+      const executor = new CursorExecutor();
+      let callCount = 0;
+      executor.openAgentHttp2Stream = () => ({
+        responseHeaders: Promise.resolve({ ":status": 200 }),
+        write: () => {},
+        end() {},
+        close() {},
+        read: async () => {
+          callCount++;
+          if (callCount === 1) return { value: trailerFrame, done: false };
+          throw new Error("HTTP2 session destroyed");
+        },
+      });
+      const { response } = await executor.executeAgent({
+        model: "gpt-5.2",
+        body: { messages: [{ role: "user", content: "hi" }] },
+        stream: true,
+        credentials: agentCredentials,
+      });
+      const bodyText = await response.text();
+      expect(bodyText).toContain("Free tier quota exceeded");
+    });
   });
 });
