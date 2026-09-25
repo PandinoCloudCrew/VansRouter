@@ -9,6 +9,33 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Production deployment, 2026-09-25
+
+After the operator confirmed promotion and requested deployment, production
+artifact metadata matched the tested image digest
+`sha256:7877675ae8d374eb496755afbbba731875d13a80f008147c9bb5fb651cbd3681`.
+The promoted Docker manifest was initially unavailable. Pushing the identical
+image to `registry.pcc.fyi/pcc/vansrouter:0.91.33-writing.1` retained its digest;
+srv0 then pulled the digest successfully before activation.
+
+Production Compose now pins that tag and digest. Container `9router` is healthy,
+still using `9router_9router-data` at `/app/data`. Public version is 0.91.33 and
+health returned `{"ok":true}`. SQLite integrity is `ok`; the existing API key
+returned HTTP 200 with 72 models, matching the predeployment count. Dashboard
+redirects to `/masuk`; OIDC initiation redirects to `https://sso.pandino.co`.
+The checked authentication and writing settings match the baseline, including
+Caveman/Ponytail ultra. Full human OIDC sign-in was not tested.
+
+A verified online SQLite backup and full volume snapshot were uploaded to
+`r2:pcc-9router/backups/pcc-soho-srv0/` as `predeploy-0.91.33.sqlite.gz` and
+`9router-volume-20260925.tar.gz`. Download-based R2 verification reported zero
+differences for each. Evidence, backups and `compose.previous.yaml` remain in
+`/home/pcc/builds/vansrouter-0.91.33-deploy-20260925/`. Rollback uses that previous
+Compose file and the retained 0.91.30-writing.1 image with the same data volume.
+The local deployment checkout's image pin was also updated, preserving its
+other existing edits. This rollout does not establish vulnerability-scan results
+or resolve the publisher's earlier scan-trigger HTTP 403.
+
 ## Upstream synchronization and staging image, 2026-09-25
 
 Merge commit `a057e63953783ac4a18a69af815d047f28928e1f` includes upstream
