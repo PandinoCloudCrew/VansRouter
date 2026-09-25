@@ -1,5 +1,26 @@
 # v0.91.33 (2026-09-25)
 
+## PCC fork image 0.91.33-writing.1
+
+- **Upstream synchronization**: Merged v0.91.31-33, including TokenHarbor,
+  Cursor ConnectRPC errors and credential checks, the OpenCode Zen keyed lane,
+  and bounded loop detection. Preserved independent writing plugins, Monaco's
+  sanitizer patch, runtime security pins and the persistent data volume.
+- **Dependencies and image**: Removed unused uuid, refreshed both npm lockfiles,
+  and retained the fork's newer dependency versions. Published Linux amd64 image
+  `registry.pcc.fyi/pcc-staging/vansrouter:0.91.33-writing.1`; normal pull and
+  registry digest verification passed. Source commit: `a057e639`.
+- **Validation**: Production build, 3,565 Linux amd64 tests and 106 fork-focused
+  tests passed. There are 82 skipped tests. macOS retains the same six baseline
+  failures. The final Linux run used two process workers after an emulated
+  threads stall and a four-worker RPC timeout. Container health, login, writing
+  settings, API-key access, SQLite integrity, npm/npx and Tailscale startup passed.
+  Application and final-image SBOMs were generated.
+- **Limits**: AK scan triggering returned HTTP 403; no scan result exists for
+  this image. Promotion and deployment remain pending. ARM64 runtime, browser UI
+  and opt-in provider integration were not verified. Digest and evidence are in
+  `FORK-MAINTENANCE.md`.
+
 ## Features
 
 - **TokenHarbor provider integration** — Added `tokenharbor` provider (`open-sse/providers/registry/tokenharbor.js`, priority `118`, alias `th`/`tokenharbor`), connecting to `https://tokenharbor.ai/v1`. Supports multi-transport routing across standard OpenAI `/v1/chat/completions`, native Claude `/v1/messages` (with `x-api-key` and `anthropic-version`), OpenAI Responses `/v1/responses`, and image generations `/v1/images/generations`. Includes native model catalog (`th-orchestra`, `claude-opus-5`, `claude-sonnet-5`, `deepseek-v4-flash`, etc.) with passthrough model support and dynamic catalog fetch from `https://tokenharbor.ai/v1/models`.
