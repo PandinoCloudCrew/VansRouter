@@ -455,10 +455,10 @@ exports[`GOLDEN buildHeaders (default executor providers) > cline → headers (a
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
     "HTTP-Referer": "https://cline.bot",
-    "User-Agent": "VansRouter/0.91.30",
+    "User-Agent": "VansRouter/0.91.33",
     "X-CLIENT-TYPE": "vansrouter",
-    "X-CLIENT-VERSION": "0.91.30",
-    "X-CORE-VERSION": "0.91.30",
+    "X-CLIENT-VERSION": "0.91.33",
+    "X-CORE-VERSION": "0.91.33",
     "X-IS-MULTIROOT": "false",
     "X-PLATFORM": "linux",
     "X-PLATFORM-VERSION": "<ENV>",
@@ -468,10 +468,10 @@ exports[`GOLDEN buildHeaders (default executor providers) > cline → headers (a
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
     "HTTP-Referer": "https://cline.bot",
-    "User-Agent": "VansRouter/0.91.30",
+    "User-Agent": "VansRouter/0.91.33",
     "X-CLIENT-TYPE": "vansrouter",
-    "X-CLIENT-VERSION": "0.91.30",
-    "X-CORE-VERSION": "0.91.30",
+    "X-CLIENT-VERSION": "0.91.33",
+    "X-CORE-VERSION": "0.91.33",
     "X-IS-MULTIROOT": "false",
     "X-PLATFORM": "linux",
     "X-PLATFORM-VERSION": "<ENV>",
@@ -482,10 +482,10 @@ exports[`GOLDEN buildHeaders (default executor providers) > cline → headers (a
     "Authorization": "Bearer <TOK>",
     "Content-Type": "application/json",
     "HTTP-Referer": "https://cline.bot",
-    "User-Agent": "VansRouter/0.91.30",
+    "User-Agent": "VansRouter/0.91.33",
     "X-CLIENT-TYPE": "vansrouter",
-    "X-CLIENT-VERSION": "0.91.30",
-    "X-CORE-VERSION": "0.91.30",
+    "X-CLIENT-VERSION": "0.91.33",
+    "X-CORE-VERSION": "0.91.33",
     "X-IS-MULTIROOT": "false",
     "X-PLATFORM": "linux",
     "X-PLATFORM-VERSION": "<ENV>",
@@ -1101,7 +1101,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > kimi → headers (ap
     "X-Msh-Device-Model": "Linux x64",
     "X-Msh-Device-Name": "<ENV>",
     "X-Msh-Platform": "9router",
-    "X-Msh-Version": "0.91.30",
+    "X-Msh-Version": "0.91.33",
     "x-api-key": "<CRED>",
   },
   "nonStream": {
@@ -1112,7 +1112,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > kimi → headers (ap
     "X-Msh-Device-Model": "Linux x64",
     "X-Msh-Device-Name": "<ENV>",
     "X-Msh-Platform": "9router",
-    "X-Msh-Version": "0.91.30",
+    "X-Msh-Version": "0.91.33",
     "x-api-key": "<CRED>",
   },
   "oauth": {
@@ -1124,7 +1124,7 @@ exports[`GOLDEN buildHeaders (default executor providers) > kimi → headers (ap
     "X-Msh-Device-Model": "Linux x64",
     "X-Msh-Device-Name": "<ENV>",
     "X-Msh-Platform": "9router",
-    "X-Msh-Version": "0.91.30",
+    "X-Msh-Version": "0.91.33",
     "x-api-key": "<CRED>",
   },
 }
@@ -1427,25 +1427,6 @@ exports[`GOLDEN buildHeaders (default executor providers) > openai → headers (
 }
 `;
 
-exports[`GOLDEN buildHeaders (default executor providers) > opencode-zen → headers (apiKey / oauth) 1`] = `
-{
-  "apiKey": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-  "nonStream": {
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-  "oauth": {
-    "Accept": "text/event-stream",
-    "Authorization": "Bearer <TOK>",
-    "Content-Type": "application/json",
-  },
-}
-`;
-
 exports[`GOLDEN buildHeaders (default executor providers) > openrouter → headers (apiKey / oauth) 1`] = `
 {
   "apiKey": {
@@ -1681,6 +1662,25 @@ exports[`GOLDEN buildHeaders (default executor providers) > tencent → headers 
 `;
 
 exports[`GOLDEN buildHeaders (default executor providers) > together → headers (apiKey / oauth) 1`] = `
+{
+  "apiKey": {
+    "Accept": "text/event-stream",
+    "Authorization": "Bearer <TOK>",
+    "Content-Type": "application/json",
+  },
+  "nonStream": {
+    "Authorization": "Bearer <TOK>",
+    "Content-Type": "application/json",
+  },
+  "oauth": {
+    "Accept": "text/event-stream",
+    "Authorization": "Bearer <TOK>",
+    "Content-Type": "application/json",
+  },
+}
+`;
+
+exports[`GOLDEN buildHeaders (default executor providers) > tokenharbor → headers (apiKey / oauth) 1`] = `
 {
   "apiKey": {
     "Accept": "text/event-stream",
@@ -2398,13 +2398,6 @@ exports[`GOLDEN buildUrl (default executor providers) > openai → url (stream +
 }
 `;
 
-exports[`GOLDEN buildUrl (default executor providers) > opencode-zen → url (stream + non-stream) 1`] = `
-{
-  "nonStream": "https://opencode.ai/zen/v1/chat/completions",
-  "stream": "https://opencode.ai/zen/v1/chat/completions",
-}
-`;
-
 exports[`GOLDEN buildUrl (default executor providers) > openrouter → url (stream + non-stream) 1`] = `
 {
   "nonStream": "https://openrouter.ai/api/v1/chat/completions",
@@ -2493,6 +2486,13 @@ exports[`GOLDEN buildUrl (default executor providers) > together → url (stream
 {
   "nonStream": "https://api.together.xyz/v1/chat/completions",
   "stream": "https://api.together.xyz/v1/chat/completions",
+}
+`;
+
+exports[`GOLDEN buildUrl (default executor providers) > tokenharbor → url (stream + non-stream) 1`] = `
+{
+  "nonStream": "https://tokenharbor.ai/v1/chat/completions",
+  "stream": "https://tokenharbor.ai/v1/chat/completions",
 }
 `;
 

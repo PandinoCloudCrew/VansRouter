@@ -6,7 +6,6 @@ import {
   encodeField,
   wrapConnectRPCFrame,
   decodeMessage,
-  parseConnectRPCFrame,
   extractTextFromResponse,
   encodeMcpTools,
   decodeMcpArgs,
@@ -165,7 +164,7 @@ function extractAgentString(message, field) {
   return value ? Buffer.from(value).toString("utf8") : "";
 }
 
-function decodeAgentFrames(buffer, onFrame) {
+export function decodeAgentFrames(buffer, onFrame) {
   let pending = Buffer.from(buffer || []);
   while (pending.length >= 5) {
     const flags = pending[0];
@@ -176,7 +175,18 @@ function decodeAgentFrames(buffer, onFrame) {
     if (flags & COMPRESS_FLAG.GZIP) {
       payload = zlib.gunzipSync(payload);
     }
-    if (!(flags & COMPRESS_FLAG.TRAILER)) onFrame(payload);
+    const isTrailer = Boolean(flags & COMPRESS_FLAG.TRAILER);
+    if (isTrailer) {
+      try {
+        const text = payload.toString("utf8");
+        const json = JSON.parse(text);
+        if (json?.error) {
+          onFrame(payload, { isTrailer: true, error: json.error, raw: json });
+        }
+      } catch {}
+    } else {
+      onFrame(payload, { isTrailer: false });
+    }
   }
   return pending;
 }
@@ -579,9 +589,10 @@ export class CursorExecutor extends BaseExecutor {
 
     let session;
     const tools = body.tools || [];
+    const upstreamModel = resolveCursorUpstreamModel(model);
     try {
       session = this.openAgentHttp2Stream(url, headers, requestController.signal);
-      session.write(buildAgentRunFrame(body.messages || [], model, tools));
+      session.write(buildAgentRunFrame(body.messages || [], upstreamModel, tools));
     } catch (error) {
       throw new Error(`Cursor AgentService request failed: ${error.message}`);
     }
@@ -640,13 +651,33 @@ export class CursorExecutor extends BaseExecutor {
     };
 
     const consume = async (onEvent) => {
+      let trailerErrorOccurred = false;
       try {
         while (!finished) {
           const { done, value } = await session.read();
           if (done) break;
           pending = Buffer.concat([pending, Buffer.from(value)]);
-          pending = decodeAgentFrames(pending, (payload) => {
+          pending = decodeAgentFrames(pending, (payload, meta) => {
             if (finished) return;
+            const isTrailer = typeof meta === "object" ? Boolean(meta?.isTrailer || meta?.error) : Boolean(meta);
+            if (isTrailer) {
+              const trailerError = (typeof meta === "object" ? meta?.error : null) || (() => {
+                try {
+                  return JSON.parse(Buffer.from(payload).toString("utf8"))?.error;
+                } catch {
+                  return null;
+                }
+              })();
+              finished = true;
+              trailerErrorOccurred = true;
+              const errorValue = {
+                ...meta?.raw,
+                error: trailerError,
+                message: trailerError?.message || trailerError?.code || "Cursor API error",
+              };
+              onEvent({ type: "error", value: errorValue });
+              return;
+            }
             const serverMessage = decodeMessage(payload);
 
             // agent.v1.AgentServerMessage.interaction_update
@@ -741,7 +772,7 @@ export class CursorExecutor extends BaseExecutor {
       } finally {
         try { session.end(); } catch {}
         try { session.close(); } catch {}
-        if (!finished) {
+        if (!finished && !trailerErrorOccurred) {
           flushThinkingFallback(onEvent);
           onEvent({ type: "done" });
         }
@@ -769,6 +800,15 @@ export class CursorExecutor extends BaseExecutor {
         else if (event.type === "done" && event.finishReason) finishReason = event.finishReason;
       });
       if (agentError) {
+        if (typeof agentError === "object" && agentError !== null) {
+          return {
+            response: createErrorResponse(agentError),
+            url,
+            headers,
+            transformedBody: body,
+            responseFormat: FORMATS.OPENAI,
+          };
+        }
         return {
           response: new Response(JSON.stringify({ error: { message: agentError, type: "api_error" } }), {
             status: HTTP_STATUS.BAD_REQUEST,
@@ -803,9 +843,21 @@ export class CursorExecutor extends BaseExecutor {
     }
 
     const encoder = new TextEncoder();
+    let closed = false;
     const responseStream = new ReadableStream({
       start(controller) {
+        const safeClose = () => {
+          if (closed) return;
+          closed = true;
+          try { controller.close(); } catch {}
+        };
+        const safeError = (err) => {
+          if (closed) return;
+          closed = true;
+          try { controller.error(err); } catch {}
+        };
         consume((event) => {
+          if (closed) return;
           if (event.type === "text") {
             controller.enqueue(encoder.encode(chatChunkSse({ id: responseId, created, model, delta: { content: event.value } })));
           } else if (event.type === "thinking") {
@@ -823,20 +875,37 @@ export class CursorExecutor extends BaseExecutor {
               },
             })));
           } else if (event.type === "error") {
-            controller.enqueue(encoder.encode(sseChunk({ error: { message: event.value, type: "api_error" } })));
+            const errObj = typeof event.value === "object" && event.value !== null
+              ? event.value
+              : { error: { message: event.value, type: "api_error" } };
+            const errorMsg = errObj.error?.details?.[0]?.debug?.details?.title
+              || errObj.error?.details?.[0]?.debug?.details?.detail
+              || errObj.error?.message
+              || errObj.message
+              || String(event.value);
+            const isRateLimit = errObj.error?.code === "resource_exhausted" || errObj.code === "resource_exhausted";
+            const ssePayload = {
+              error: {
+                message: errorMsg,
+                type: isRateLimit ? "rate_limit_error" : "api_error",
+                code: errObj.error?.details?.[0]?.debug?.error || errObj.error?.code || errObj.code || (isRateLimit ? "rate_limited" : "unknown"),
+              },
+            };
+            controller.enqueue(encoder.encode(sseChunk(ssePayload)));
             controller.enqueue(encoder.encode(SSE_DONE));
-            controller.close();
+            safeClose();
           } else if (event.type === "done") {
             controller.enqueue(encoder.encode(chatChunkSse({
               id: responseId, created, model, delta: {},
               finishReason: event.finishReason || "stop",
             })));
             controller.enqueue(encoder.encode(SSE_DONE));
-            controller.close();
+            safeClose();
           }
-        }).catch((error) => controller.error(error));
+        }).catch(safeError);
       },
       cancel() {
+        closed = true;
         requestController.abort();
       },
     });

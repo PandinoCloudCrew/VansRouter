@@ -148,6 +148,7 @@ import p145 from "./selfhosted-embedding.js";
 import p146 from "./selfhosted-stt.js";
 import p147 from "./selfhosted-tts.js";
 import p148 from "./qoder-cn.js";
+import p149 from "./tokenharbor.js";
 
 export default [
   p0,
@@ -299,5 +300,6 @@ export default [
   p145,
   p146,
   p147,
-  p148
+  p148,
+  p149
 ];
