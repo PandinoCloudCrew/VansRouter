@@ -9,6 +9,55 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Upstream synchronization and staging image, 2026-09-25
+
+Merge commit `a057e63953783ac4a18a69af815d047f28928e1f` includes upstream
+v0.91.33 (`1750d6ee`) on `codex/writing-plugins`. Both package versions are
+0.91.33. This brings TokenHarbor, Cursor ConnectRPC error handling and token
+checks, OpenCode Zen's keyed lane, and bounded loop detection from v0.91.31-33.
+The fork's independent writing plugins, patched Monaco sanitizer, runtime
+security pins and persistent Docker volume remain. The pnpm conflict retains
+undici 7.29.1 while removing upstream's unused uuid dependency. Both npm
+lockfiles were refreshed without a general dependency upgrade.
+
+Published Linux amd64 image, verified by normal Docker pull:
+
+`registry.pcc.fyi/pcc-staging/vansrouter:0.91.33-writing.1@sha256:7877675ae8d374eb496755afbbba731875d13a80f008147c9bb5fb651cbd3681`
+
+Image labels identify the merge commit and PCC fork. AK artifact metadata
+matches the digest. Scan triggering returned HTTP 403 on 2026-09-25,
+correlation ID `639300c2cddd377da80403bd3eb3e697`; the repository scan listing
+contains no result for this version. Security verification and promotion remain
+pending. Production deployment configuration, containers and data were not changed.
+
+Verification:
+
+- macOS baseline: 3,524 passed, six failed, 82 skipped. Candidate: 3,559 passed,
+  the same six failure names, 82 skipped. Failures cover platform header snapshots,
+  `/var` versus `/private/var`, and the SQLite fixture's macOS temporary path.
+- Linux amd64 baseline: 304 suites, 3,530 tests passed, 82 skipped. Final candidate:
+  307 suites, 3,565 tests passed, 82 skipped, exit 0. The candidate used Vitest
+  `--pool=forks --maxWorkers=2` under emulation. An initial threads run stalled;
+  a four-process run passed every assertion but reported an `onTaskUpdate` RPC
+  timeout. The final run had neither test failures nor unhandled errors. Isolated
+  migration tests also passed with both worker modes. Earlier builder-only runs
+  lacked CLI fixtures and used an ARM64 builder; final runs used complete source
+  and the amd64 native-dependency images.
+- Fork-focused suite: 106 tests passed. Undefined-variable lint, hooks lint,
+  Git whitespace checks, production build and native SQLite query passed.
+- Disposable-container health/version, password login, persisted independent
+  writing toggles, invalid boolean rejection, API-key model discovery and SQLite
+  integrity passed. Health, login and settings were repeated on the labeled image.
+  npm install/ci/npx as the node user passed; Tailscale reached `NeedsLogin`.
+  Monaco's build-time sanitizer matched the patched DOMPurify source.
+- Application CycloneDX 1.5 SBOM: 188 components. Final-image Syft inventories:
+  1,005 CycloneDX components and 479 package records. These are inventories, not
+  completed vulnerability scans. Logs and inventories are retained locally in
+  `/tmp/vansrouter-sync-20260925/`.
+
+ARM64 runtime, browser UI and opt-in provider integration were not verified.
+No upstream npm release or upstream Git tag was published.
+
 ## Production deployment, 2026-09-23
 
 After the operator promoted `0.91.30-writing.1` and requested deployment,
