@@ -9,8 +9,9 @@ import { rememberEndpoint } from "./cliEndpointPresets";
 import ApiKeySelect from "./ApiKeySelect";
 import { matchKnownEndpoint } from "./cliEndpointMatch";
 import { getCurrentCodexProviderSettings } from "./codexConfig";
+import CodexProfilesSection from "./CodexProfilesSection";
 
-function CodexExpandedSection({ activeProviders, apiKeys, applying, checkingCodex, cloudEnabled, codexStatus, customBaseUrl, getDisplayUrl, handleApplySettings, handleResetSettings, message, restoring, selectedApiKey, selectedModel, setCustomBaseUrl, setModalOpen, setSelectedApiKey, setSelectedModel, setShowInstallGuide, setShowManualConfigModal, setSubagentModalOpen, setSubagentModel, showInstallGuide, subagentModel, tailscaleEnabled, tailscaleUrl, tool, tunnelEnabled, tunnelPublicUrl }) {
+function CodexExpandedSection({ activeProviders, apiKeys, applying, checkingCodex, cloudEnabled, codexStatus, customBaseUrl, getDisplayUrl, handleApplySettings, handleResetSettings, message, modelAliases, restoring, selectedApiKey, selectedModel, setCustomBaseUrl, setModalOpen, setSelectedApiKey, setSelectedModel, setShowInstallGuide, setShowManualConfigModal, setSubagentModalOpen, setSubagentModel, showInstallGuide, subagentModel, tailscaleEnabled, tailscaleUrl, tool, tunnelEnabled, tunnelPublicUrl }) {
   return (
         <div className="mt-4 pt-4 border-t border-border flex flex-col gap-4">
           {checkingCodex && (
@@ -149,6 +150,8 @@ function CodexExpandedSection({ activeProviders, apiKeys, applying, checkingCode
                   <span className="material-symbols-outlined text-[14px] mr-1">content_copy</span>Manual Config
                 </Button>
               </div>
+
+              <CodexProfilesSection activeProviders={activeProviders} modelAliases={modelAliases} />
             </>
           )}
         </div>
@@ -314,6 +317,7 @@ default_subagent_model = "${effectiveSubagentModel}"
         customBaseUrl={customBaseUrl}
         getDisplayUrl={getDisplayUrl}
         handleApplySettings={handleApplySettings}
+        modelAliases={modelAliases}
         handleResetSettings={handleResetSettings}
         message={message}
         restoring={restoring}
