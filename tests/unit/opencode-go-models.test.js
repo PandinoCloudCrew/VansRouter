@@ -18,35 +18,58 @@ const CLI_PROVIDERS_SOURCE = await import("fs").then(({ readFileSync }) =>
 
 // Chat-only models (no /messages, no /responses support on opencode-go)
 const CHAT_ONLY = [
+  "deepseek-flash",
   "glm-5.3-flash",
   "glm-5.3",
   "glm-5.2",
   "glm-5.1",
+  "glm-5",
   "kimi-k2.7-code",
   "kimi-k2.6",
+  "kimi-k2.5",
   "kimi-k3",
-  "deepseek-flash",
   "longcat-2.0",
+  "mimo-v2.6-flash",
+  "mimo-v2.6-pro",
   "mimo-v2.5",
   "mimo-v2.5-pro",
+  "mimo-v2-pro",
+  "mimo-v2-omni",
   "hy4-preview",
   "hy3",
+  "hy3-preview",
+  "omen-alpha",
 ];
 // Models that also expose the Anthropic /messages endpoint
 const CLAUDE_CAPABLE = [
   "minimax-m3",
   "minimax-m2.7",
   "minimax-m2.5",
+  "space-bunny-free",
   "qwen3.8-max",
   "qwen3.8-flash",
   "qwen3.7-max",
   "qwen3.7-plus",
   "qwen3.6-plus",
+  "qwen3.5-plus",
 ];
 // Models that also expose the OpenAI /responses endpoint
-const RESPONSES_CAPABLE = ["deepseek-v4-pro", "deepseek-v4-flash"];
+const RESPONSES_CAPABLE = [
+  "deepseek-v4-pro",
+  "deepseek-v4-flash",
+  "deepseek-v4-flash-vision-exp",
+  "deepseek-v4.1-flash",
+];
 // Models served exclusively by the OpenAI /responses endpoint
-const RESPONSES_ONLY = ["muse-spark-1.2-contributor"];
+const RESPONSES_ONLY = [
+  "grok-4.7",
+  "grok-4.6",
+  "grok-4.5",
+  "gpt-5.6-luna",
+  "gpt-6-luna",
+  "muse-spark-1.2-contributor",
+  "muse-spark-1.3-contributor",
+];
 
 // Mirror of chatCore's per-model transport guard: use the sourceFormat-matched
 // transport only when the model declares support for that sourceFormat.
@@ -89,6 +112,7 @@ describe("OpenCode Go model catalog", () => {
       "minimax-m3",
       "minimax-m2.7",
       "minimax-m2.5",
+      "space-bunny-free",
       "qwen3.8-max",
       "qwen3.8-flash",
       "qwen3.7-max",
@@ -103,6 +127,7 @@ describe("OpenCode Go model catalog", () => {
       "grok-4.6",
       "grok-4.5",
       "gpt-5.6-luna",
+      "gpt-6-luna",
       "muse-spark-1.2-contributor",
       "muse-spark-1.3-contributor",
     ]);
@@ -474,7 +499,7 @@ describe("OpenCode Go family fallback (unknown/passthrough ids)", () => {
   });
 
   it("curated entries win over the family regex", () => {
-    expect(getModelSupportedFormats("opencode-go", "deepseek-v4.1-flash")).toEqual(["openai"]);
+    expect(getModelSupportedFormats("opencode-go", "deepseek-flash")).toEqual(["openai"]);
     expect(getModelSupportedFormats("opencode-go", "deepseek-v4-pro")).toEqual(["openai", "claude", "openai-responses"]);
   });
 });
