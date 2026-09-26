@@ -13,6 +13,7 @@ import { PROVIDERS } from "../config/providers.js";
 import { createErrorResult, parseUpstreamError, formatProviderError } from "../utils/error.js";
 import { checkFallbackError } from "../services/accountFallback.js";
 import { classifyError, logGatewayError } from "../utils/errorLog.js";
+import { upstreamResponseHeaders } from "../utils/upstreamHeaders.js";
 import { HTTP_STATUS, TOKEN_SAVER_HEADER } from "../config/runtimeConfig.js";
 import { handleBypassRequest } from "../utils/bypassHandler.js";
 import { trackPendingRequest, appendRequestLog, saveRequestDetail } from "@/lib/usageDb.js";
@@ -630,7 +631,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     const errMsg = formatProviderError(new Error(message), provider, model, statusCode);
     console.log(`${COLORS.red}[ERROR] ${errMsg}${COLORS.reset}`);
     reqLogger.logError(new Error(message), finalBody || translatedBody);
-    const { isContentFilter } = checkFallbackError(statusCode, message);
+const { isContentFilter } = checkFallbackError(statusCode, message);
     logGatewayError({
       class: classifyError({ status: statusCode, message, isPolicyError: isContentFilter }),
       provider,
@@ -639,7 +640,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
       status: statusCode,
       connectionId,
     });
-    return createErrorResult(statusCode, errMsg, resetsAtMs, isContentFilter);
+    return createErrorResult(statusCode, errMsg, resetsAtMs, isContentFilter, upstreamResponseHeaders(providerResponse.headers));
   }
 
   const sharedCtx = { provider, model, body, stream, translatedBody, finalBody, requestStartTime, connectionId, apiKey, apiKeyInfo, apiKeyName, clientRawRequest, onRequestSuccess, clientModelId, pxpipe: pxpipeSummary };
