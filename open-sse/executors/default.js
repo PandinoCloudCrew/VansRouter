@@ -9,6 +9,7 @@ import { injectReasoningContent } from "../utils/reasoningContentInjector.js";
 import { stripUnsupportedParams } from "../translator/concerns/paramSupport.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
 import { getKimchiUserAgent } from "../utils/kimchiUserAgent.js";
+import { extractClaudeSessionIdFromUserId } from "../utils/claudeCloaking.js";
 
 // Auth header descriptors — derived from registry transport.auth, fallback to hardcoded defaults.
 const BEARER = { combined: true, header: "Authorization", scheme: "bearer" };
@@ -259,7 +260,7 @@ export class DefaultExecutor extends BaseExecutor {
     return BEARER;
   }
 
-  buildHeaders(credentials, stream = true, model = null) {
+  buildHeaders(credentials, stream = true, model = null, body = null) {
     const rt = credentials?.runtimeTransport;
     const headers = { "Content-Type": "application/json", ...(rt ? rt.headers : this.config.headers) };
     const desc = rt?.auth || AUTH_DESCRIPTORS[this.provider] || this.resolveAuthDescriptor();
@@ -279,6 +280,15 @@ export class DefaultExecutor extends BaseExecutor {
     if (clientBeta && (this.provider === "claude" || this.provider === "anthropic"
       || (this.provider?.startsWith?.("anthropic-compatible-") && isClaudeModel))) {
       headers["Anthropic-Beta"] = mergeAnthropicBeta(headers["Anthropic-Beta"], clientBeta);
+    }
+
+    // Claude OAuth: align x-claude-code-session-id with metadata.user_id.session_id if missing
+    if (this.provider === "claude" && !headers["x-claude-code-session-id"]) {
+      const token = credentials?.accessToken || credentials?.apiKey || "";
+      if (token.includes("sk-ant-oat")) {
+        const sid = extractClaudeSessionIdFromUserId(body?.metadata?.user_id);
+        if (sid) headers["x-claude-code-session-id"] = sid;
+      }
     }
     // Strip first-party Claude Code identity headers for non-Anthropic anthropic-compatible upstreams
     if (this.provider?.startsWith?.("anthropic-compatible-")) {
