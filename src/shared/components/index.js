@@ -32,6 +32,7 @@ export const KiroAuthModal = lazyModal(() => import("./KiroAuthModal"));
 export const KiroOAuthWrapper = lazyModal(() => import("./KiroOAuthWrapper"));
 export const KiroSocialOAuthModal = lazyModal(() => import("./KiroSocialOAuthModal"));
 export const CursorAuthModal = lazyModal(() => import("./CursorAuthModal"));
+export const ZedAuthModal = lazyModal(() => import("./ZedAuthModal"));
 export const IFlowCookieModal = lazyModal(() => import("./IFlowCookieModal"));
 export const GitLabAuthModal = lazyModal(() => import("./GitLabAuthModal"));
 export const EditConnectionModal = lazyModal(() => import("./EditConnectionModal"));
