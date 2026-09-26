@@ -151,6 +151,10 @@ import p148 from "./qoder-cn.js";
 import p149 from "./tokenharbor.js";
 import p150 from "./meta.js";
 import p151 from "./hive.js";
+import p152 from "./dahl.js";
+import p153 from "./atria.js";
+import p154 from "./agnes.js";
+import p155 from "./bai.js";
 
 export default [
   p0,
@@ -305,5 +309,9 @@ export default [
   p148,
   p149,
   p150,
-  p151
+  p151,
+  p152,
+  p153,
+  p154,
+  p155
 ];
