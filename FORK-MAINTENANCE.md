@@ -9,6 +9,38 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Production deployment, 2026-09-28
+
+After operator promotion, srv0 deployed the tested multiarch image:
+
+`registry.pcc.fyi/pcc/vansrouter:0.91.51-writing.1@sha256:4453909a91bbbbb9284c7fd13a38263bbb2bef5a4c7d41fe522349d93ec618ea`
+
+Production metadata matched the staging digest, but the Docker manifest was
+missing. Pushing the identical multiarch image restored it without changing the
+digest. The production manifest matched the tested staging index; srv0 pulled
+the pinned Linux amd64 image before activation.
+
+Container `9router` became healthy. Public version returned `0.91.51`, health
+returned `{"ok":true}`, and readiness reported `ok: true`, `database: ready`.
+SQLite integrity was `ok`, schemaVersion remained `8`, and the existing API key
+returned HTTP 200 with 73 models, matching the baseline. Checked authentication
+and writing settings were unchanged. The original `9router_9router-data` volume
+remains mounted at `/app/data`; no persisted Tailscale daemon override exists.
+Dashboard returned 307 to `/masuk`; OIDC initiation returned 307 to
+`https://sso.pandino.co`. Full human OIDC sign-in was not tested.
+
+Before deployment, an integrity-checked SQLite online backup and full volume
+backup were uploaded to `r2:pcc-9router/backups/pcc-soho-srv0/` as
+`predeploy-0.91.51.sqlite.gz` and `9router-volume-20260928.tar.gz`.
+Downloaded R2 verification reported zero differences for both files.
+Baseline, post-deployment evidence, backups and `compose.previous.yaml` remain
+in `/home/pcc/builds/vansrouter-0.91.51-deploy-20260928/` on srv0.
+Rollback uses that previous Compose file and
+`registry.pcc.fyi/pcc/vansrouter:0.91.33-writing.1@sha256:7877675ae8d374eb496755afbbba731875d13a80f008147c9bb5fb651cbd3681`,
+retaining the same data volume. The local deployment checkout now matches the
+production image pin. Operator promotion does not establish new vulnerability
+scan evidence; the scan limitations recorded below remain applicable.
+
 ## Upstream synchronization and staging image, 2026-09-28
 
 Merge `e54a2d5d95eee7444f2a5c11b18b740aaad1750c` includes upstream v0.91.51
@@ -36,8 +68,8 @@ The index contains Linux amd64 and arm64 images, each with registry-readable
 provenance and SBOM attestations. Image labels identify the merge commit and PCC
 fork. AK scan triggering returned HTTP 403 on 2026-09-28, correlation ID
 `7ee54693f2ab97edf09806ae52948ec7`; the paginated staging scan listing has no
-result for this version. No vulnerability-clean claim is made. Promotion and
-production deployment remain pending; production was not modified.
+result for this version. No vulnerability-clean claim is made. Production
+deployment subsequently completed as recorded above.
 
 Verification:
 
