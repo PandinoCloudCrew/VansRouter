@@ -9,6 +9,68 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Upstream synchronization and staging image, 2026-09-28
+
+Merge `e54a2d5d95eee7444f2a5c11b18b740aaad1750c` includes upstream v0.91.51
+(`ad591d72`) on `codex/writing-plugins`. Both package versions are 0.91.51.
+Changes include cross-provider long tool-name fitting, CodeBuddy channel/error
+handling, OpenCode model/auth fixes, Antigravity validation cooldowns, password
+bootstrap restrictions, persistent runtime paths, safer volume migration,
+standalone dependency closure and cross-platform release tooling.
+
+The fork retains independent writing controls, the local patched Monaco editor,
+Node/npm security pins and rebuilt Tailscale. Docker now follows upstream's
+frozen pnpm application install and separately locked, checksum-verified
+better-sqlite3 12.10.0 binaries. Both npm lockfiles and the pnpm lockfile were
+reconciled without a general dependency refresh. The settings API test now
+supplies a real signed session through a mocked Next.js cookie store. The
+Docker contract test verifies the fork's source-built Tailscale instead of
+upstream binary archive checksums. SBOM workflow steps retain pinned actions
+and reference upstream's renamed build step.
+
+Published index, verified against AK metadata and platform-specific Docker pulls:
+
+`registry.pcc.fyi/pcc-staging/vansrouter:0.91.51-writing.1@sha256:4453909a91bbbbb9284c7fd13a38263bbb2bef5a4c7d41fe522349d93ec618ea`
+
+The index contains Linux amd64 and arm64 images, each with registry-readable
+provenance and SBOM attestations. Image labels identify the merge commit and PCC
+fork. AK scan triggering returned HTTP 403 on 2026-09-28, correlation ID
+`7ee54693f2ab97edf09806ae52948ec7`; the paginated staging scan listing has no
+result for this version. No vulnerability-clean claim is made. Promotion and
+production deployment remain pending; production was not modified.
+
+Verification:
+
+- macOS baseline: 3,559 passed, six failed, 82 skipped. Final candidate: 3,751
+  passed, four failed, 82 skipped. All four candidate failure names reproduced
+  on pristine upstream with the same installed dependencies: two platform header
+  snapshots, the temporary DATA_DIR guard and the SQLite webpack fixture.
+- Initial paired Linux amd64 runs counted 3,565 baseline and 3,755 candidate
+  passing tests, but both exited 1 with a Vitest `onTaskUpdate` worker timeout.
+  The isolated candidate rerun, using `--pool=forks --maxWorkers=2 --silent
+  --reporter=dot`, exited 0: 339 suites passed, 3,755 tests passed, 82 skipped,
+  no unhandled errors. Test dependencies came from the candidate npm lockfile
+  for both Linux source snapshots.
+- Fork-focused suite: 106 passed. HTTP/2 server suite: two passed. Production
+  build, undefined-variable lint, hooks lint, workflow YAML parsing and the
+  fork diff whitespace check passed. Upstream's imported whitespace was retained.
+- Both architectures passed native SQLite, readiness, health, version, password
+  login, remote password-change restrictions and runtime dependency resolution.
+  Smoke checks were repeated after pulling the published digest. The local
+  smoke harness used platform-aware Docker inspection because upstream's helper
+  assumes one local architecture and attempts to remove an existing image.
+- Both architectures passed independent writing toggles, rejected invalid
+  booleans, API-key model discovery, SQLite integrity, npm install/ci/npx as the
+  node user and Tailscale startup to `NeedsLogin`. Monaco's build-time sanitizer
+  matched the patched DOMPurify source.
+- Application CycloneDX 1.5 SBOM: 188 components. Final-image Syft inventories:
+  515 package records per architecture, with 1,077 amd64 and 1,076 arm64 CycloneDX
+  components. Inventories do not replace vulnerability scans. Evidence remains
+  in `/tmp/vansrouter-sync-20260928/` on the workstation.
+
+Browser UI, full Windows/macOS application runtime and opt-in provider
+integration were not verified. No upstream npm release or Git tag was published.
+
 ## Production deployment, 2026-09-25
 
 After the operator confirmed promotion and requested deployment, production
@@ -390,7 +452,7 @@ Both CycloneDX outputs parsed as 1.5 with unique references and valid dependency
 links. These are inventory checks, not vulnerability or policy validation.
 
 `Dockerfile` pins the Node base digest, upgrades Alpine packages and installs
-global npm 11.19.1 in the host builder and shared target base. It rebuilds both
+global npm 11.20.0 in the host builder and runtime stage. It rebuilds both
 Tailscale 1.102.4 binaries from a SHA-256-verified source archive using a pinned
 Go 1.26.8 image. The build upgrades `golang.org/x/crypto` to v0.56.0,
 `golang.org/x/image` to v0.45.0 and `github.com/insomniacslk/dhcp` to
@@ -399,14 +461,16 @@ binary archives. Return to upstream binaries when their module inventory covers
 these fixes. The custom long version identifies this downstream build.
 
 Monaco's private DOMPurify copy is replaced during `postinstall` with the
-installed DOMPurify 3.4.15 ESM source. Both npm and pnpm override its nested
+installed DOMPurify 3.4.16 ESM source. Both npm and pnpm override its nested
 dependency. `TranslatorEditor.js` loads the local editor and local JSON/editor
 workers; the loader's default CDN would bypass the patched source. Keep the
 private sanitizer instance separate because Monaco modifies its hooks.
 
-Keep `package-lock.json` committed: the Docker build uses `npm ci`. The upstream
-ignore rules ignore lockfiles, so creating a replacement may require
-`git add -f package-lock.json`. Review lock changes with `package.json` changes.
+Keep `package-lock.json` committed for the application SBOM and npm validation.
+The Docker builder uses `pnpm install --frozen-lockfile`; keep `pnpm-lock.yaml`
+in sync too. The native stage uses its separate `docker/native-deps/package-lock.json`
+with `npm ci --ignore-scripts`, then installs the checksum-verified SQLite binary.
+Review each lockfile with its corresponding package manifest.
 
 For a runtime update:
 
