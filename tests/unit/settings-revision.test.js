@@ -3,12 +3,16 @@ import os from "node:os";
 import path from "node:path";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+const cookieStore = vi.hoisted(() => new Map());
+vi.mock("next/headers", () => ({ cookies: async () => cookieStore }));
+
 const originalDataDir = process.env.DATA_DIR;
 let tempDir;
 let dbApi;
 let db;
 
 beforeEach(async () => {
+  cookieStore.clear();
   tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "9router-settings-revision-"));
   process.env.DATA_DIR = tempDir;
   delete global._dbAdapter;
@@ -126,6 +130,8 @@ describe("writing plugin settings API", () => {
     }
   });
   it("updates only the selected plugin and returns effective defaults", async () => {
+    const { createDashboardAuthToken } = await import("@/lib/auth/dashboardSession.js");
+    cookieStore.set("auth_token", { value: await createDashboardAuthToken() });
     const { PATCH } = await import("@/app/api/settings/route.js");
     const response = await PATCH(new Request("http://localhost/api/settings", {
       method: "PATCH", headers: { "content-type": "application/json" },

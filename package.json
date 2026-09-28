@@ -1,8 +1,9 @@
 {
   "name": "vansrouter-app",
-  "version": "0.91.33",
+  "version": "0.91.51",
   "description": "9Router web dashboard",
   "private": true,
+  "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=22.5.0"
   },
@@ -14,11 +15,13 @@
     "lint:reacthooks": "node scripts/lint-reacthooks.cjs",
     "lint": "eslint . --no-warn-ignored",
     "test": "npx vitest run -c tests/vitest.config.js",
+    "test:server": "node --test tests/unit/custom-server-h2c.test.cjs",
     "test:watch": "npx vitest -c tests/vitest.config.js",
     "sbom": "npm sbom --sbom-format=cyclonedx --sbom-type=application --package-lock-only --omit=dev",
     "sbom:image": "syft scan --output cyclonedx-json@1.5",
     "build": "node scripts/build.js",
-    "start": "node custom-server.js --port 20127",
+    "start": "node custom-server.js --port 20128",
+    "preflight:upgrade": "node scripts/preflight-upgrade.cjs",
     "dev:bun": "bun --bun next dev --webpack --port 20127",
     "build:bun": "bun --bun next build --webpack",
     "start:bun": "bun ./.next/standalone/custom-server.js",
@@ -75,6 +78,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "esbuild": "^0.28.1",
     "js-yaml": "^4.2.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^4",

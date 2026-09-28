@@ -1,6 +1,10 @@
 // Free OpenCode models that don't use the "-free" id suffix
 const KNOWN_FREE_OPENCODE_MODELS = ["big-pickle"];
 
+// No dead-model list: upstream's rejections are volatile and a hardcoded snapshot
+// cannot expire. A bad id fails loudly on use instead. (One existed; it hid two
+// live models and had an unreachable entry.)
+
 // NVIDIA NIM free-tier models whitelist.
 // This is statically defined to prevent Next.js standalone dependency-splitting failures
 // where the import of PROVIDERS from open-sse registry yields an empty object in production.
