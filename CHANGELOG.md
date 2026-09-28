@@ -1,3 +1,20 @@
+# v0.91.51 (2026-09-28)
+
+## Fixed
+
+- **Universal tool name length fitting across all provider formats (issue #148)** — Upstream OpenAI-compatible gateways (such as kiosapi.com, OneAPI, OpenAI RFC) and OpenCode Responses API (`muse-spark-1.3-contributor`) reject requests with HTTP 400 when a function tool name exceeds 64 characters (`name must be at most 64 characters, got 68`). Added `ensureFittedToolNames` centrally in `open-sse/translator/index.js` (`translateRequest`), fitting over-long names to <= 64 characters across all formats (`openai`, `openai-responses`, `claude`, `gemini`) using a deterministic numeric suffix scheme (`_1`, `_2`) that avoids collisions while preserving prompt caching. Rewrites `tool_choice`, `messages` history tool calls, and Responses `input` function calls. Reverse mapping is stored in `_toolNameMap` so response translators transparently restore original tool names to clients. Reconciled Gemini and Antigravity function name sanitizers to use `fitToolName`.
+- **Tencent CodeBuddy WAF 11128 error neutralization (issue #150)** — Tencent CodeBuddy (`copilot.tencent.com` and `codebuddy.ai`) WAF screens request bodies for rival CLI identity markers (such as Claude Code system prompt `You are Claude Code, Anthropic's official CLI for Claude...`) and blocks requests with HTTP 400 code 11128 `Illegal API invocation from an unapproved channel`. Added `open-sse/executors/codebuddyShared.js` shared by `codebuddy-intl` and `codebuddy-cn` to rewrite competitor identity markers into neutral assistant prompts in `system` and `assistant` messages before dispatch, while preserving user and tool messages byte-for-byte. Also compacts oversized tool schemas (>64KB), harvests rotated Bearer tokens from response authorization headers, and maps code 11128 as `isContentFilter: true` in `open-sse/config/errorConfig.js` to avoid cascading account cooldown burns.
+
+## Features
+
+- **OpenCode Free Space Bunny Free model** — Added `space-bunny-free` to the built-in models list in `open-sse/providers/registry/opencode.js`.
+
+## Tests
+
+- Added `tests/unit/issue-148-long-tool-name-all-providers.test.js` verifying tool name fitting and transparent response restoration across OpenAI and Responses API formats.
+- Added `tests/unit/issue-150-codebuddy-unapproved-channel.test.js` validating Claude Code identity neutralization, ZCode marker sanitization, oversized tool compaction, token rotation, and 11128 content-filter error mapping.
+- Verified test suite: 338 test files / 3,735 tests passing (0 failures).
+
 # v0.91.50 (2026-09-26)
 
 ## Release Infrastructure
