@@ -1,5 +1,5 @@
 import { FORMATS } from "./formats.js";
-import { ensureToolCallIds, fixMissingToolResponses } from "./concerns/toolCall.js";
+import { ensureFittedToolNames, ensureToolCallIds, fixMissingToolResponses } from "./concerns/toolCall.js";
 import { prepareClaudeRequest } from "./formats/claude.js";
 import { cloakClaudeTools, decloakStreamChunk } from "../utils/claudeCloaking.js";
 import { restoreToolNames } from "../utils/opencodeFingerprint.js";
@@ -48,6 +48,10 @@ export function translateRequest(sourceFormat, targetFormat, model, body, stream
   
   // Fix missing tool responses (insert empty tool_result if needed)
   fixMissingToolResponses(result);
+
+  // Fit over-long tool names (max 64 chars) across all providers and record reverse map
+  ensureFittedToolNames(result);
+  const initialToolNameMap = result._toolNameMap;
 
   // Capture thinking intent from the original (pre-translation) body, before any
   // format conversion strips/renames the fields. Applied after translation.
@@ -121,6 +125,17 @@ export function translateRequest(sourceFormat, targetFormat, model, body, stream
       result = cloakedBody;
       if (toolNameMap?.size > 0) {
         result._toolNameMap = toolNameMap;
+      }
+    }
+  }
+
+  // Preserve fitted tool names reverse map across all translation passes
+  if (initialToolNameMap?.size) {
+    if (!result._toolNameMap) {
+      result._toolNameMap = new Map(initialToolNameMap);
+    } else {
+      for (const [k, v] of initialToolNameMap) {
+        result._toolNameMap.set(k, v);
       }
     }
   }
