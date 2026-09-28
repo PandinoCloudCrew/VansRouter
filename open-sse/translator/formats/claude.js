@@ -79,6 +79,25 @@ export function anchorClaudeCache(body) {
 }
 
 // Check if message has valid non-empty content
+// A block type outside this list makes the whole message count as empty and be
+// dropped by prepareClaudeRequest — so anything the caller can legitimately
+// send alone must be listed. container_upload (Files API) is one of those:
+// a user turn whose only block is a file reference is valid Anthropic input
+// (#4316), and dropping it forwarded `messages: []` to the provider.
+const CONTENTFUL_BLOCKS = new Set([
+  CLAUDE_BLOCK.TOOL_USE,
+  CLAUDE_BLOCK.TOOL_RESULT,
+  CLAUDE_BLOCK.IMAGE,
+  CLAUDE_BLOCK.DOCUMENT,
+  CLAUDE_BLOCK.CONTAINER_UPLOAD,
+]);
+
+function isContentfulBlock(block) {
+  if (!block) return false;
+  if (block.type === CLAUDE_BLOCK.TEXT) return !!block.text?.trim();
+  return CONTENTFUL_BLOCKS.has(block.type);
+}
+
 export function hasValidContent(msg) {
   if (typeof msg.content === "string" && msg.content.trim()) return true;
   const content = msg.content && typeof msg.content === "object" && !Array.isArray(msg.content) ? [msg.content] : msg.content;
@@ -90,6 +109,11 @@ export function hasValidContent(msg) {
       block.type === CLAUDE_BLOCK.IMAGE ||
       block.type === CLAUDE_BLOCK.DOCUMENT
     );
+  if (msg.content && typeof msg.content === "object" && !Array.isArray(msg.content)) {
+    return isContentfulBlock(msg.content);
+  }
+  if (Array.isArray(msg.content)) {
+    return msg.content.some(isContentfulBlock);
   }
   return false;
 }
