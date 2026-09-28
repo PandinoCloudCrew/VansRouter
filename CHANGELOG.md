@@ -1,5 +1,29 @@
 # v0.91.51 (2026-09-28)
 
+## PCC fork image 0.91.51-writing.1
+
+- **Upstream synchronization**: Merged through v0.91.51, including long tool-name
+  fitting, CodeBuddy channel handling, OpenCode and Antigravity fixes, password
+  bootstrap restrictions, persistent paths, volume migration and standalone
+  packaging improvements. Preserved independent writing plugins, patched Monaco
+  and the fork's runtime security pins.
+- **Build and publication**: Adopted upstream's frozen pnpm install and verified
+  native SQLite binaries. Published Linux amd64 and arm64 images with provenance
+  and SBOM attestations to
+  `registry.pcc.fyi/pcc-staging/vansrouter:0.91.51-writing.1`.
+  Source merge: `e54a2d5d`. Both platforms passed pulls and smoke checks against
+  the published digest; full digest and evidence are in `FORK-MAINTENANCE.md`.
+- **Validation**: Final Linux run passed 339 suites and 3,755 tests, with 82
+  skipped and exit 0. The fork-focused suite passed 106 tests; HTTP/2 server tests
+  passed two. Both architectures passed health/readiness, authentication, writing
+  settings, API-key access, SQLite integrity, npm/npx and Tailscale startup.
+  Application and per-architecture image inventories were generated.
+- **Limits**: Paired Linux baseline/candidate runs both encountered a Vitest
+  worker timeout before the clean isolated candidate rerun. Four macOS failures
+  reproduced on pristine upstream. Browser UI, full desktop runtime and opt-in
+  provider integration remain unverified. AK scan triggering returned HTTP 403;
+  promotion and deployment remain pending. Production was not modified.
+
 ## Fixed
 
 - **Universal tool name length fitting across all provider formats (issue #148)** — Upstream OpenAI-compatible gateways (such as kiosapi.com, OneAPI, OpenAI RFC) and OpenCode Responses API (`muse-spark-1.3-contributor`) reject requests with HTTP 400 when a function tool name exceeds 64 characters (`name must be at most 64 characters, got 68`). Added `ensureFittedToolNames` centrally in `open-sse/translator/index.js` (`translateRequest`), fitting over-long names to <= 64 characters across all formats (`openai`, `openai-responses`, `claude`, `gemini`) using a deterministic numeric suffix scheme (`_1`, `_2`) that avoids collisions while preserving prompt caching. Rewrites `tool_choice`, `messages` history tool calls, and Responses `input` function calls. Reverse mapping is stored in `_toolNameMap` so response translators transparently restore original tool names to clients. Reconciled Gemini and Antigravity function name sanitizers to use `fitToolName`.
