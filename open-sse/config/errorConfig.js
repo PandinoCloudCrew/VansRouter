@@ -73,6 +73,8 @@ export const ERROR_RULES = [
   { text: "content exists risk",      shouldFallback: false, isContentFilter: true },
   { text: "sensitive words detected", shouldFallback: false, isContentFilter: true },
   { text: "sensitive content",        shouldFallback: false, isContentFilter: true },
+  { text: "unapproved channel",       shouldFallback: false, isContentFilter: true },
+  { text: "illegal api invocation",   shouldFallback: false, isContentFilter: true },
   { text: "no credentials",           cooldownMs: COOLDOWN.long },
   { text: "request not allowed",      cooldownMs: COOLDOWN.short },
   { text: "improperly formed request", cooldownMs: COOLDOWN.long },

@@ -1,4 +1,10 @@
 import { DefaultExecutor } from "./default.js";
+import {
+  neutralizeCodeBuddyChannelIdentity,
+  compactOversizedTools,
+  captureRotatedToken,
+  parseCodeBuddyError,
+} from "./codebuddyShared.js";
 
 const REQUIRED_SYSTEM_PROMPT = "You are CodeBuddy Code.";
 
@@ -15,6 +21,17 @@ export class CodeBuddyIntlExecutor extends DefaultExecutor {
     super("codebuddy-intl");
   }
 
+  async execute(input) {
+    const result = await super.execute(input);
+    const resp = result instanceof Response ? result : result?.response;
+    captureRotatedToken(resp, input.credentials);
+    return result;
+  }
+
+  parseError(response, bodyText) {
+    return parseCodeBuddyError(response, bodyText);
+  }
+
   transformRequest(model, body, stream, credentials) {
     const input = body && typeof body === "object" ? structuredClone(body) : body;
     const transformed = super.transformRequest(model, input, stream, credentials);
@@ -27,9 +44,12 @@ export class CodeBuddyIntlExecutor extends DefaultExecutor {
       transformed.reasoning_summary = "auto";
     }
 
+    // Neutralize third-party CLI identity markers (Claude Code, ZCode) to avoid 11128 WAF block
+    const sanitizedMessages = neutralizeCodeBuddyChannelIdentity(transformed.messages);
+
     // CodeBuddy rejects plain OpenAI shape (11101 invalid request): needs a
     // leading system prompt + user content as typed blocks, not a bare string.
-    const source = Array.isArray(transformed.messages) ? transformed.messages : [];
+    const source = Array.isArray(sanitizedMessages) ? sanitizedMessages : [];
     const messages = [{ role: "system", content: REQUIRED_SYSTEM_PROMPT }];
     let requiredPromptSeen = false;
     for (const message of source) {
@@ -46,6 +66,11 @@ export class CodeBuddyIntlExecutor extends DefaultExecutor {
       }
     }
     transformed.messages = messages;
+
+    // Compact oversized tools if >64KB to avoid sensitive content rejection
+    if (Array.isArray(transformed.tools) && transformed.tools.length > 0) {
+      transformed.tools = compactOversizedTools(transformed.tools);
+    }
 
     return transformed;
   }

@@ -1,4 +1,10 @@
 import { DefaultExecutor } from "./default.js";
+import {
+  neutralizeCodeBuddyChannelIdentity,
+  compactOversizedTools,
+  captureRotatedToken,
+  parseCodeBuddyError,
+} from "./codebuddyShared.js";
 
 /**
  * CodeBuddyExecutor — talks to https://copilot.tencent.com/v2/chat/completions
@@ -12,6 +18,17 @@ import { DefaultExecutor } from "./default.js";
 export class CodeBuddyExecutor extends DefaultExecutor {
   constructor() {
     super("codebuddy-cn");
+  }
+
+  async execute(input) {
+    const result = await super.execute(input);
+    const resp = result instanceof Response ? result : result?.response;
+    captureRotatedToken(resp, input.credentials);
+    return result;
+  }
+
+  parseError(response, bodyText) {
+    return parseCodeBuddyError(response, bodyText);
   }
 
   transformRequest(model, body, stream, credentials) {
@@ -33,6 +50,17 @@ export class CodeBuddyExecutor extends DefaultExecutor {
     // No reasoning requested: leave both unset. Forcing reasoning_effort:"medium"
     // + reasoning_summary on plain requests makes CodeBuddy trip its content
     // filter and return an error (#2071).
+
+    // Neutralize third-party CLI identity markers (Claude Code, ZCode) to avoid 11128 WAF block
+    if (Array.isArray(transformed.messages)) {
+      transformed.messages = neutralizeCodeBuddyChannelIdentity(transformed.messages);
+    }
+
+    // Compact oversized tools if >64KB to avoid sensitive content rejection
+    if (Array.isArray(transformed.tools) && transformed.tools.length > 0) {
+      transformed.tools = compactOversizedTools(transformed.tools);
+    }
+
     return transformed;
   }
 }
