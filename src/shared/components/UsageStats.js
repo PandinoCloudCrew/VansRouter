@@ -305,13 +305,13 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
         }
         const seen = new Set();
         const unique = (d?.connections || []).reduce((acc, c) => {
-          if (c.isActive === false || !isLLMProvider(c.provider) || seen.has(c.provider)) return acc;
+          if (c.isActive === false || !isLLMProvider(c.provider) || AI_PROVIDERS[c.provider]?.hidden || seen.has(c.provider)) return acc;
           seen.add(c.provider);
           acc.push({ ...c, nodeName: nodeNameMap[c.provider] || null });
           return acc;
         }, []);
         const noAuthProviders = Object.values(FREE_PROVIDERS).reduce((acc, p) => {
-          if (p.noAuth && !seen.has(p.id) && isLLMProvider(p.id)) acc.push({ provider: p.id, name: p.name });
+          if (p.noAuth && !p.hidden && !seen.has(p.id) && isLLMProvider(p.id)) acc.push({ provider: p.id, name: p.name });
           return acc;
         }, []);
         setProviders([...unique, ...noAuthProviders]);
