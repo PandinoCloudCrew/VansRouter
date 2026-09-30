@@ -15,6 +15,7 @@ export default {
     deprecationNotice: "RISK_NOTICE",
   },
   category: "free",
+  hasFree: true,
   transport: {
     baseUrl: "https://runtime.us-east-1.kiro.dev/generateAssistantResponse",
     baseUrls: [
