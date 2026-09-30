@@ -150,6 +150,7 @@ import p147 from "./selfhosted-tts.js";
 import p148 from "./qoder-cn.js";
 import p149 from "./tokenharbor.js";
 import p150 from "./meta.js";
+import p151 from "./hive.js";
 
 export default [
   p0,
@@ -303,5 +304,6 @@ export default [
   p147,
   p148,
   p149,
-  p150
+  p150,
+  p151
 ];

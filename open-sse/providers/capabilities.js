@@ -436,6 +436,29 @@ const CODEX_GPT_56_DEFAULT_CAPS = {
  * Provider-specific capability overrides. Keyed by provider alias/id.
  */
 export const PROVIDER_CAPABILITIES = {
+  // Hive AI — OpenAI-compatible endpoints with 1M context, vision/multimodal, tools.
+  // Keyed by the bare model id; the upstream "vendor/model" form resolves through
+  // the baseModel fallback in getCapabilitiesForModel.
+  // Verified live: reasoning_content streams on every turn regardless of request
+  // params (reasoning_effort / thinking / enable_thinking are all accepted and
+  // ignored), so thinking cannot be turned off.
+  hive: {
+    "deepseek-v4.1-flash": {
+      vision: true,
+      reasoning: true,
+      thinkingFormat: "openai",
+      thinkingCanDisable: false,
+      contextWindow: 1000000,
+    },
+    "glm-5.3-flash": {
+      vision: true,
+      videoInput: true,
+      reasoning: true,
+      thinkingFormat: "openai",
+      thinkingCanDisable: false,
+      contextWindow: 1000000,
+    },
+  },
   // Kimchi provider — exactly the 4 models advertised by the Kimchi CLI.
   // Kimi entries copied from the official Kimchi CLI catalog
   // (https://models.dev/api.json, provider "moonshotai").

@@ -1010,6 +1010,25 @@ exports[`GOLDEN buildHeaders (default executor providers) > heroku → headers (
 }
 `;
 
+exports[`GOLDEN buildHeaders (default executor providers) > hive → headers (apiKey / oauth) 1`] = `
+{
+  "apiKey": {
+    "Accept": "text/event-stream",
+    "Authorization": "Bearer <TOK>",
+    "Content-Type": "application/json",
+  },
+  "nonStream": {
+    "Authorization": "Bearer <TOK>",
+    "Content-Type": "application/json",
+  },
+  "oauth": {
+    "Accept": "text/event-stream",
+    "Authorization": "Bearer <TOK>",
+    "Content-Type": "application/json",
+  },
+}
+`;
+
 exports[`GOLDEN buildHeaders (default executor providers) > hyperbolic → headers (apiKey / oauth) 1`] = `
 {
   "apiKey": {
@@ -2274,6 +2293,13 @@ exports[`GOLDEN buildUrl (default executor providers) > heroku → url (stream +
 {
   "nonStream": "https://us.inference.heroku.com/v1/chat/completions",
   "stream": "https://us.inference.heroku.com/v1/chat/completions",
+}
+`;
+
+exports[`GOLDEN buildUrl (default executor providers) > hive → url (stream + non-stream) 1`] = `
+{
+  "nonStream": "https://api.thehive.ai/api/v3/chat/completions",
+  "stream": "https://api.thehive.ai/api/v3/chat/completions",
 }
 `;
 

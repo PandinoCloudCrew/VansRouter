@@ -919,7 +919,25 @@ async function testApiKeyConnection(connection, effectiveProxy = null) {
           const res = await fetchWithConnectionProxy(probeUrl, {
             headers: { [authHeader]: `${authScheme}${connection.apiKey}` },
           }, effectiveProxy);
-          return { valid: res.ok, error: res.ok ? null : "Invalid API key" };
+          // 401/403 is a conclusive auth verdict → reject before any fallback.
+          if (res.status === 401 || res.status === 403) {
+            return { valid: false, error: "Invalid API key" };
+          }
+          if (res.ok) return { valid: true, error: null };
+          // No GET-able probe endpoint (404/405/5xx, e.g. Hive /api/v3/models):
+          // fall back to a minimal chat probe. Only 401/403 there means a bad key.
+          const chatRes = await fetchWithConnectionProxy(cfg.baseUrl, {
+            method: "POST",
+            headers: { [authHeader]: `${authScheme}${connection.apiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: getDefaultModel(connection.provider) || "test",
+              messages: [{ role: "user", content: "ping" }],
+              max_tokens: 1,
+              stream: false,
+            }),
+          }, effectiveProxy);
+          const valid = chatRes.status !== 401 && chatRes.status !== 403;
+          return { valid, error: valid ? null : "Invalid API key" };
         }
         return { valid: false, error: "Provider test not supported" };
       }
