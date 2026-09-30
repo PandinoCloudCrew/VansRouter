@@ -2,9 +2,9 @@ const api = require("../api/client");
 const { prompt } = require("./input");
 const { clearScreen } = require("./display");
 
-// Provider alias order: OAuth first, then API Key (matches ModelSelectModal)
+// Provider alias order: OAuth first, then Free, then API Key
 const PROVIDER_ALIAS_ORDER = [
-  "cc", "ag", "cx", "if", "qw", "gc", "gh", "kr",
+  "cc", "ag", "cx", "if", "qw", "gc", "gh", "kr", "oc",
   "openrouter", "glm", "kimi", "minimax", "openai", "anthropic", "gemini", "opencode-go"
 ];
 
@@ -18,6 +18,8 @@ const PROVIDER_ALIAS_NAMES = {
   gc: "Gemini CLI",
   gh: "GitHub Copilot",
   kr: "Kiro AI",
+  oc: "OpenCode Free",
+  opencode: "OpenCode Free",
   openrouter: "OpenRouter",
   glm: "GLM Coding",
   kimi: "Kimi Coding",
@@ -28,15 +30,61 @@ const PROVIDER_ALIAS_NAMES = {
   "opencode-go": "OpenCode Go"
 };
 
+const PROVIDER_ID_TO_ALIAS = {
+  claude: "cc",
+  codex: "cx",
+  "gemini-cli": "gc",
+  github: "gh",
+  antigravity: "ag",
+  iflow: "if",
+  qwen: "qw",
+  kiro: "kr",
+  cursor: "cu",
+  cline: "cline",
+  clinepass: "clinepass",
+  qoder: "qd",
+  "qoder-cn": "qd",
+  gitlab: "gitlab",
+  "codebuddy-cn": "cb",
+  "codebuddy-intl": "cbai",
+  kimchi: "kimchi",
+  "grok-cli": "grok-cli",
+  trae: "trae",
+  windsurf: "windsurf",
+  zed: "zed",
+  opencode: "oc",
+  "opencode-go": "ocg",
+  "opencode-zen": "ocz",
+};
+
+// Providers usable without stored credentials
+const NO_AUTH_PROVIDERS = new Set(["opencode", "oc"]);
+
 /**
- * Get all available models grouped by provider + combos
+ * Get all available models grouped by provider + combos (filtered by active connections)
  * @returns {Promise<{combos: Array, groups: Object}>}
  */
 async function getAvailableModelsGrouped() {
-  const result = await api.getAvailableModels();
-  if (!result.success) return { combos: [], groups: {} };
+  const [modelsResult, providersResult] = await Promise.all([
+    api.getAvailableModels(),
+    api.getProviders()
+  ]);
 
-  const models = result.data?.data || [];
+  if (!modelsResult.success) return { combos: [], groups: {} };
+
+  const connections = providersResult.success ? (providersResult.data?.connections || []) : [];
+  const activeAliases = new Set(NO_AUTH_PROVIDERS);
+
+  connections.forEach(conn => {
+    if (conn.isActive === false) return;
+    const p = conn.provider;
+    if (!p) return;
+    activeAliases.add(p);
+    const alias = conn.providerSpecificData?.prefix || PROVIDER_ID_TO_ALIAS[p] || p;
+    activeAliases.add(alias);
+  });
+
+  const models = modelsResult.data?.data || [];
   const combos = [];
   const groups = {};
 
@@ -45,6 +93,8 @@ async function getAvailableModelsGrouped() {
       combos.push(m.id);
     } else {
       const provider = m.owned_by;
+      // Only keep connected providers or noAuth providers
+      if (!activeAliases.has(provider)) return;
       if (!groups[provider]) {
         groups[provider] = [];
       }
@@ -69,6 +119,19 @@ async function selectModelFromList(title, currentValue = "", options = {}) {
 
   const totalModels = combos.length + Object.values(groups).flat().length;
   if (totalModels === 0) {
+    clearScreen();
+    console.log(`\n🎯 ${title}`);
+    console.log("=".repeat(50));
+    console.log("\n  No connected providers found.");
+    console.log("  Please connect a provider in Providers menu first.\n");
+    console.log("  m. ✍️  Enter custom model ID");
+    console.log("  0. Cancel\n");
+    const act = await prompt("Select option (m/0): ");
+    const trimmed = act.trim();
+    if (trimmed.toLowerCase() === "m") {
+      const custom = await prompt("Enter custom model ID: ");
+      return custom.trim() || null;
+    }
     return null;
   }
 
