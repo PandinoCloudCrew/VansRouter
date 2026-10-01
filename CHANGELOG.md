@@ -1,3 +1,102 @@
+# v0.91.60 (2026-10-01)
+
+45 commits over the v0.91.51 tag: three new provider integrations, one new STT
+transport, a Codex CLI profile manager, and a hardening pass over the chat
+pipeline found by an internal thermo-nuclear audit. 150 files, +6275/-475.
+
+## Features
+
+- **Hive AI provider** (`hive`, aliases `hive-ai`) — self-hosted OpenAI-compatible
+  LLMs on `api.thehive.ai/api/v3`, with `deepseek-ai/deepseek-v4.1-flash` and
+  `zai-org/glm-5.3-flash` (1M context, vision; GLM also video). Short ids are
+  rewritten to the full upstream names, which Hive requires. Model metadata lives
+  in `open-sse/providers/capabilities.js`.
+- **Four OpenAI-compatible aggregator providers** (agnes, atria, bai, dahl) with
+  catalogue validation and a provider-icon resolver that matches the shipped
+  asset format.
+- **Free-tier catalogue** with per-provider refresh cadence
+  (`open-sse/providers/freeTiers.js`), surfaced on the usage page via
+  `FreeTierList`, plus redeemable free-limit resets for Claude accounts
+  (usage API `claude-reset`, gated by `usage/[connectionId]/claude-reset`).
+- **Gemini Live STT transport** (`open-sse/handlers/geminiLiveStt.js`) — models
+  whose only API is the Live WebSocket are now dispatched over
+  `:bidiGenerateContent` instead of being rejected as unsupported (#4006).
+- **Codex CLI model profiles** — the Codex card can list, create and delete
+  `~/.codex/<alias>.config.toml` profiles and copy the `codex -p <alias>`
+  command (`/api/cli-tools/codex-profiles`, `CodexProfilesSection`).
+- **Claude thinking text** is returned to OpenAI-format clients (previously only
+  reasoning_content was streamed), and `x-claude-code-session-id` is derived from
+  `metadata.user_id` for OAuth requests.
+- **Hermes multi-role model config** — delegation plus auxiliary slots through
+  `/api/cli-tools/hermes-settings`.
+
+## Reliability & Compatibility
+
+- `response.completed` now carries every streamed output item (#4307). The first
+  fix keyed them by `output_index`, so reasoning and message items at index 0
+  overwrote each other; the list is now emission-ordered and deduped by item id.
+- Incoming `anthropic-beta` flags are merged into the pinned per-provider set, and
+  upstream `retry-after` / `x-should-retry` / `anthropic-ratelimit-*` headers are
+  forwarded to the client (`open-sse/utils/upstreamHeaders.js`).
+- `POST /api/providers` is O(1) in pool size for the MAX(priority)+1 path (#4311),
+  while callers that send an explicit priority still get the pool reindexed —
+  without that, every dashboard insert collided on priority 1.
+- Zed OAuth: IDE keyring auto-import (`ZedAuthModal`, `lib/oauth/utils/zedCredentials.js`)
+  replaces a browser/paste flow that called endpoints which do not exist in this
+  tree.
+- CLI model selector takes provider aliases from `/api/providers` instead of a
+  copied table that had drifted from the registry (cline, zed, qoder-cn,
+  codebuddy-cn, grok-cli).
+- grok-cli no longer fails with HTTP 426: the advertised client version moved off
+  the wire-captured 0.2.99 and is overridable with `GROK_CLI_VERSION` (#153).
+- commandcode replays raw byte chunks so no NDJSON line is split; Gemini
+  `normalizeGeminiContents` guards terminal model turns and unresponded function
+  calls; Claude tool-name decloaking falls back to suffix stripping.
+- Codex settings apply now refreshes the status it just wrote (`force-dynamic` +
+  `cache: "no-store"`), and the card reads the base URL and bearer key from the
+  active provider table.
+- `open-sse/executors/base.js` declares the `buildHeaders(credentials, stream,
+  model, body)` contract that `execute()` already passes.
+- Hermes settings reject roles that are not `[A-Za-z0-9_-]{1,32}` and models or
+  base URLs containing a quote or newline before writing `config.yaml`.
+
+## Frontend & Accessibility
+
+- Usage charts and `marked` are loaded lazily and preloaded on idle, and
+  `UsageStats` leaves the shared barrel so recharts (~589KB) stays out of every
+  dashboard route's initial bundle.
+- Zed, Hermes and Codex cards follow the existing modal/accessibility patterns;
+  the Zed modal is now 190 lines (was 415) and only offers flows whose endpoints
+  exist.
+
+## Release Infrastructure
+
+- `eslint .` passes again: an `@typescript-eslint/no-require-imports` disable for
+  a rule this repo does not configure was an error, and the `require()` it guarded
+  was dead in ESM.
+- Tests: new coverage for executor header contracts, Zed endpoint existence,
+  Codex profiles, Hermes validation, grok-cli version handling, aggregator
+  providers, free tiers, Gemini content normalization, response.completed output
+  items and provider priority inserts. `tests/vitest.config.js` sets
+  `hookTimeout: 30000`; the 10s default was the source of the intermittent hook
+  timeouts in `xai-oauth-service.test.js`.
+- Full suite green on this commit (see the validation section below).
+
+## Known gaps (not claimed as verified)
+
+- `hive/zai-org/glm-5.3-flash` streams tool calls **without** `arguments`
+  (`function.name` only, then `finish_reason: "tool_calls"`, `completion_tokens: 1`).
+  Reproduced live through the proxy; the same route keeps arguments for
+  `deepseek-ai/deepseek-v4.1-flash` and GLM works non-streamed, so this is upstream.
+  The model is therefore marked `tools: false` and should be used for
+  vision/analysis, not tool work, until Hive fixes it.
+- The grok-cli version gate was not live-verified against
+  `cli-chat-proxy.grok.com` from this checkout (needs a connected account); the
+  bump follows the upstream error message in issue #153 and the default is env
+  overridable.
+- The Gemini Live STT WebSocket path was exercised only by its unit suite; no real
+  Google Live session was run.
+
 # v0.91.51 (2026-09-28)
 
 ## Fixed
