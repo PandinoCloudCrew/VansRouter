@@ -109,7 +109,7 @@ export async function POST(request) {
     const providerBlock = buildOmpProviderYaml(baseUrl, resolvedKey);
 
     // Remove existing 9router provider if present
-    const regex = new RegExp(`\\s*${PROVIDER_ID}:[\\s\\S]*?(?=\\n\\s*\\w+:|$)`, "g");
+    const regex = new RegExp(`\\s*${PROVIDER_ID}:[\\s\\S]*?(?=\\n[ \\t]{0,2}\\w+:|$)`, "g");
     ymlContent = ymlContent.replace(regex, "");
 
     if (!ymlContent.trim()) {
@@ -163,7 +163,7 @@ export async function POST(request) {
 export async function DELETE() {
   try {
     let ymlContent = await readModelsYml();
-    const regex = new RegExp(`\\s*${PROVIDER_ID}:[\\s\\S]*?(?=\\n\\s*\\w+:|$)`, "g");
+    const regex = new RegExp(`\\s*${PROVIDER_ID}:[\\s\\S]*?(?=\\n[ \\t]{0,2}\\w+:|$)`, "g");
     ymlContent = ymlContent.replace(regex, "");
 
     if (ymlContent.trim() === "providers:") {
