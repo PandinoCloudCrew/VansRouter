@@ -1,5 +1,7 @@
-// Provider id this fork writes into ~/.codex/config.toml; profiles must name it.
-export const CODEX_MODEL_PROVIDER = "VansRoute";
+// Provider table the Codex Apply route writes into ~/.codex/config.toml
+// (src/app/api/cli-tools/codex-settings/route.js:126,132). Profile files must
+// name the same table or `codex -p <alias>` resolves to nothing after Apply.
+export const CODEX_MODEL_PROVIDER = "9router";
 
 const parseTomlString = (line, key) => {
   const match = line.match(new RegExp(`^\\s*${key}\\s*=\\s*(["'])([^\\n]*?)\\1\\s*(?:#.*)?$`));

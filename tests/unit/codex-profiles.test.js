@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import {
   CODEX_MODEL_PROVIDER,
   deriveProfileNameFromModel,
@@ -24,7 +26,17 @@ describe("Codex profiles configuration", () => {
     const toml = buildCodexProfileToml({ name: "claude", model: "anthropic/claude-3-7-sonnet" });
     expect(toml).toContain('model = "anthropic/claude-3-7-sonnet"');
     expect(toml).toContain(`model_provider = "${CODEX_MODEL_PROVIDER}"`);
-    expect(toml).toContain('model_provider = "VansRoute"');
+    // Must match the table the Apply route writes (codex-settings/route.js).
+    expect(toml).toContain('model_provider = "9router"');
     expect(parseCodexProfileModel(toml)).toBe("anthropic/claude-3-7-sonnet");
+  });
+
+  it("names the provider table the Apply route writes", async () => {
+    const routeSource = await readFile(
+      fileURLToPath(new URL("../../src/app/api/cli-tools/codex-settings/route.js", import.meta.url)),
+      "utf8",
+    );
+    expect(routeSource).toContain(`parsed.model_provider = "${CODEX_MODEL_PROVIDER}"`);
+    expect(routeSource).toContain(`"model_providers.${CODEX_MODEL_PROVIDER}"`);
   });
 });
