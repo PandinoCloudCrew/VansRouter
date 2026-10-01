@@ -157,6 +157,7 @@ import p154 from "./agnes.js";
 import p155 from "./bai.js";
 import p156 from "./tinyfish.js";
 import p157 from "./muse.js";
+import p158 from "./v1m.js";
 
 // Auto-generated: static imports for all registry entries
 import p68z from "./opencode-zen.js";
@@ -324,5 +325,6 @@ export default [
   p154,
   p155,
   p156,
-  p157
+  p157,
+  p158
 ];

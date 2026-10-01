@@ -6,7 +6,7 @@ import { RISK_NOTICE } from "@/shared/constants/providersDisplay.js";
 const MEDIA_ENTRY_KEYS = [
   "serviceKinds", "ttsConfig", "sttConfig", "embeddingConfig",
   "imageConfig", "imageToTextConfig", "videoConfig", "musicConfig",
-  "searchViaChat", "searchConfig", "fetchConfig",
+  "searchViaChat", "searchConfig", "fetchConfig", "systemoneConfig",
   "modelsFetcher", "mediaPriority", "hiddenKinds", "credentialFallback",
 ];
 
