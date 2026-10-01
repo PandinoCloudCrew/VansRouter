@@ -4,6 +4,7 @@ import { stripComboPrefix } from "open-sse/services/combo.js";
 import { buildModelsList } from "@/sse/services/allowedModels.js";
 import { capabilitiesFromServiceKind } from "open-sse/providers/capabilities.js";
 import { PROVIDER_MODELS, PROVIDER_ID_TO_ALIAS, getModelKind } from "@/shared/constants/models";
+import {
   ALIAS_TO_ID,
   AI_PROVIDERS,
   getProviderAlias,
@@ -42,6 +43,7 @@ async function resolveQoderLiveModels(conn, provider) {
   const models = routableQoderModels(result);
   if (!models.length) return null;
   return { models: models.map((m) => ({ id: m.id, name: m.name })) };
+}
 // Combo seats use UI aliases; the model registry also has transport aliases.
 // Capability overrides and catalog limits are keyed by provider id.
 const ALIAS_TO_PROVIDER_ID = {
@@ -55,6 +57,7 @@ function comboSeatCapabilities(seat) {
   if (slash <= 0) return null;
   const alias = seat.slice(0, slash);
   return getCapabilitiesForModel(ALIAS_TO_PROVIDER_ID[alias] || alias, seat.slice(slash + 1));
+}
 // Per-provider live model resolvers. Each receives a connection record and
 // returns { models: [{ id, name? }, ...] } | null on failure.
 // Adding a provider here makes /v1/models prefer the live catalog for it.
