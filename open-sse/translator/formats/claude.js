@@ -81,22 +81,45 @@ export function hoistToolResultImages(body) {
   return touched ? { ...body, messages } : body;
 }
 
+// Re-anchor cache breakpoints on a Claude passthrough body (same policy as
+// prepareClaudeRequest): last tool + last system block at 1h, last assistant at 5m.
+// The client's own markers point at pre-normalization offsets, so they are dropped.
+// Must run LAST, after every step that can reshape system/tools/messages
+// (normalize, tool dedupe, token savers) — otherwise the anchor drifts off the tail.
 export function anchorClaudeCache(body) {
   if (!body || typeof body !== "object") return body;
   for (const msg of body.messages || []) normalizeMessageContent(msg);
   for (const tool of body.tools || []) if (tool?.defer_loading === true) delete tool.cache_control;
-  if (Array.isArray(body.system) && body.system.length) body.system.at(-1).cache_control = { type: "ephemeral", ttl: "1h" };
+  if (Array.isArray(body.system) && body.system.length) body.system.at(-1).cache_control = { ...CACHE_CONTROL_1H };
   const lastTool = lastCacheableToolIndex(body.tools);
-  if (lastTool >= 0) body.tools[lastTool].cache_control = { type: "ephemeral", ttl: "1h" };
+  if (lastTool >= 0) body.tools[lastTool].cache_control = { ...CACHE_CONTROL_1H };
   if (countCacheControlBlocks(body) >= 4) {
     capCacheControlBlocks(body);
     return body;
   }
   if (Array.isArray(body.messages)) {
-    for (const message of body.messages) for (const block of message.content || []) delete block.cache_control;
-    const target = [...body.messages].reverse().find((m) => m.role === ROLE.ASSISTANT && Array.isArray(m.content)) || [...body.messages].reverse().find((m) => Array.isArray(m.content));
-    const block = [...(target?.content || [])].reverse().find((b) => b && typeof b === "object" && ![CLAUDE_BLOCK.THINKING, CLAUDE_BLOCK.REDACTED_THINKING].includes(b.type));
-    if (block) block.cache_control = { type: "ephemeral" };
+    let anchored = false;
+    for (let i = body.messages.length - 1; i >= 0; i--) {
+      const msg = body.messages[i];
+      if (!Array.isArray(msg.content)) continue;
+      for (const block of msg.content) delete block.cache_control;
+
+      // Prefer the last assistant turn: it ends a completed exchange, so the
+      // prefix up to it stays byte-stable across the following requests.
+      if (anchored || msg.role !== ROLE.ASSISTANT) continue;
+      anchored = markLastCacheableBlock(msg);
+    }
+
+    // First turn of a conversation has no assistant yet — anchor the final
+    // message instead, so the opening prompt is cached rather than paid twice.
+    if (!anchored) {
+      for (let i = body.messages.length - 1; i >= 0 && !anchored; i--) {
+        anchored = markLastCacheableBlock(body.messages[i]);
+      }
+    }
+
+    // ...and a tool loop's final tool results, so the next step reads them.
+    markFinalToolResults(body);
   }
   return body;
 }
@@ -108,6 +131,7 @@ export function anchorClaudeCache(body) {
 // a user turn whose only block is a file reference is valid Anthropic input
 // (#4316), and dropping it forwarded `messages: []` to the provider.
 const CACHE_CONTROL_5M = { type: "ephemeral" };
+const CACHE_CONTROL_1H = { type: "ephemeral", ttl: "1h" };
 
 const CONTENTFUL_BLOCKS = new Set([
   CLAUDE_BLOCK.TOOL_USE,
@@ -374,12 +398,6 @@ function markFinalToolResults(body) {
   if (countCacheControlBlocks(body) >= 4) return false;
   return markLastCacheableBlock(last);
 }
-
-// Re-anchor cache breakpoints on a Claude passthrough body (same policy as
-// prepareClaudeRequest): last tool + last system block at 1h, last assistant at 5m.
-// The client's own markers point at pre-normalization offsets, so they are dropped.
-// Must run LAST, after every step that can reshape system/tools/messages
-// (normalize, tool dedupe, token savers) — otherwise the anchor drifts off the tail.
 
 // Prepare request for Claude format endpoints
 // - Cleanup cache_control

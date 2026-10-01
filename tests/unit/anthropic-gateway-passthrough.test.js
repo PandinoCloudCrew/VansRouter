@@ -22,7 +22,7 @@ describe("DefaultExecutor.buildHeaders() forwards client anthropic-beta", () => 
   it("keeps unknown client flags alongside the pinned set on claude", () => {
     const executor = new DefaultExecutor("claude");
     const rawHeaders = { "anthropic-beta": "safeguards-2026-09-01,context-1m-2025-08-07" };
-    const flags = betaFlags(executor.buildHeaders({ apiKey: "k", rawHeaders }, true, "claude-opus-5"));
+    const flags = betaFlags(executor.buildHeaders({ apiKey: "k", rawHeaders }, true, undefined, "claude-opus-5"));
     expect(flags).toContain("safeguards-2026-09-01");
     expect(flags).toContain("context-1m-2025-08-07");
     expect(flags).toContain("context-management-2025-06-27");
@@ -32,14 +32,14 @@ describe("DefaultExecutor.buildHeaders() forwards client anthropic-beta", () => 
   it("forwards client flags on anthropic-compatible Claude models", () => {
     const executor = new DefaultExecutor("anthropic-compatible-custom");
     const creds = { apiKey: "k", rawHeaders: { "anthropic-beta": "safeguards-2026-09-01" }, providerSpecificData: { baseUrl: "https://gw.example.com/v1" } };
-    const flags = betaFlags(executor.buildHeaders(creds, true, "claude-sonnet-5"));
+    const flags = betaFlags(executor.buildHeaders(creds, true, undefined, "claude-sonnet-5"));
     expect(flags).toContain("safeguards-2026-09-01");
     expect(flags).not.toContain("claude-code-20250219");
   });
 
   it("forwards client flags on the anthropic provider", () => {
     const executor = new DefaultExecutor("anthropic");
-    const flags = betaFlags(executor.buildHeaders({ apiKey: "k", rawHeaders: { "anthropic-beta": "safeguards-2026-09-01" } }, true, "claude-sonnet-5"));
+    const flags = betaFlags(executor.buildHeaders({ apiKey: "k", rawHeaders: { "anthropic-beta": "safeguards-2026-09-01" } }, true, undefined, "claude-sonnet-5"));
     expect(flags).toContain("safeguards-2026-09-01");
   });
 });

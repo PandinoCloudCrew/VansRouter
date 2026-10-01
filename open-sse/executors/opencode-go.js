@@ -96,7 +96,7 @@ export class OpenCodeGoExecutor extends BaseExecutor {
         : `${BASE}/chat/completions`;
   }
 
-  buildHeaders(credentials, stream = true, model) {
+  buildHeaders(credentials, stream = true, url, model) {
     const runtimeTransport = credentials?.runtimeTransport;
     const effectiveModel = model || this._lastModel;
     const raw = Object.fromEntries(

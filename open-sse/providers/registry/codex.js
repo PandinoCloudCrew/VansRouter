@@ -1,8 +1,7 @@
-const CODEX_CLI_VERSION = "0.154.0";
-
-// GPT-6 Sol/Luna (responses-lite) accept the full effort ladder, including xhigh.
 // Codex CLI version seen by OpenAI's backend — single source for the Version /
 // User-Agent identity headers. Bump when the installed codex CLI is upgraded.
+const CODEX_CLI_VERSION = "0.159.0";
+// GPT-6 Sol/Luna (responses-lite) accept the full effort ladder, including xhigh.
 const GPT_6_LITE_THINKING_LEVELS = ["low", "medium", "high", "xhigh", "max"];
 
 export default {
@@ -43,6 +42,7 @@ export default {
     headers: {
       originator: "codex_cli_rs",
       "User-Agent": `codex_cli_rs/${CODEX_CLI_VERSION}`,
+      version: CODEX_CLI_VERSION,
     },
     usage: {
       url: "https://chatgpt.com/backend-api/wham/usage",

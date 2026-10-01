@@ -642,6 +642,7 @@ export const PROVIDER_CAPABILITIES = {
   },
   codex: {
     "gpt-6-astra": { vision: true, reasoning: true, search: true, thinkingFormat: "openai", contextWindow: 272000, maxOutput: 128000 },
+    "gpt-6.1-sol": { vision: true, reasoning: true, search: true, thinkingFormat: "openai", contextWindow: 272000, maxOutput: 128000 },
     "gpt-6-sol": { vision: true, reasoning: true, search: true, thinkingFormat: "openai", contextWindow: 272000, maxOutput: 128000 },
     "gpt-6-luna": { vision: true, reasoning: true, search: true, thinkingFormat: "openai", contextWindow: 272000, maxOutput: 128000 },
     "gpt-5.6-sol": CODEX_GPT_56_SOL_CAPS,
@@ -1786,37 +1787,3 @@ export function getCapabilitiesForModel(provider, model) {
   return refine(null, provider, model);
 }
 
-export function aggregateComboCapabilities(comboModels, comboLookup = null, resolveCaps = null, _depth = 0) {
-  if (!comboModels?.length || _depth > 6) return null;
-  const allCaps = comboModels.map((fullId) => {
-    // Nested combo: bare name (no slash) that exists in the lookup — recurse
-    if (!fullId.includes("/") && comboLookup?.[fullId]) {
-      return aggregateComboCapabilities(comboLookup[fullId], comboLookup, resolveCaps, _depth + 1)
-          ?? resolveCaps?.(fullId)
-          ?? getCapabilitiesForModel(null, fullId);
-    }
-    const slash = fullId.indexOf("/");
-    const provider = slash === -1 ? null : fullId.slice(0, slash);
-    const model = slash === -1 ? fullId : fullId.slice(slash + 1);
-    const local = getCapabilitiesForModel(provider, model);
-    const override = resolveCaps?.(fullId);
-    return override ? { ...local, ...override } : local;
-  });
-  const first = allCaps[0];
-  return {
-    vision:      allCaps.some((c) => c.vision),
-    pdf:         allCaps.some((c) => c.pdf),
-    audioInput:  allCaps.some((c) => c.audioInput),
-    videoInput:  allCaps.some((c) => c.videoInput),
-    imageOutput: allCaps.some((c) => c.imageOutput),
-    audioOutput: allCaps.some((c) => c.audioOutput),
-    search:      allCaps.some((c) => c.search),
-    tools:       allCaps.every((c) => c.tools),
-    reasoning:          first.reasoning,
-    thinkingFormat:     first.thinkingFormat,
-    thinkingCanDisable: first.thinkingCanDisable,
-    thinkingRange:      first.thinkingRange,
-    contextWindow: Math.min(...allCaps.map((c) => c.contextWindow)),
-    maxOutput:     Math.max(...allCaps.map((c) => c.maxOutput)),
-  };
-}

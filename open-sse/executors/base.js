@@ -43,10 +43,10 @@ export class BaseExecutor {
     return baseUrls[urlIndex] || baseUrls[0] || this.config.baseUrl;
   }
 
-  // Contract for every executor: slot 3 is the model id, slot 4 is the request
-  // body as translated before the call (base.execute passes both). Subclasses
-  // that ignore the extra slots declare fewer parameters.
-  buildHeaders(credentials, stream = true, model = null, body = null) {
+  // Contract for every executor: slot 3 is the resolved upstream URL, slot 4 the
+  // model id, slot 5 the request body as translated before the call (base.execute
+  // passes all three). Subclasses that ignore the extra slots declare fewer params.
+  buildHeaders(credentials, stream = true) {
     const headers = {
       "Content-Type": "application/json",
       ...this.config.headers
@@ -134,7 +134,7 @@ export class BaseExecutor {
     for (let urlIndex = 0; urlIndex < fallbackCount; urlIndex++) {
       const url = this.buildUrl(model, stream, urlIndex, credentials);
       const transformedBody = this.transformRequest(model, body, stream, credentials);
-      const headers = this.buildHeaders(credentials, stream, model, body);
+      const headers = this.buildHeaders(credentials, stream, url, model, transformedBody);
       // User per-provider override wins over registry headers (blocked names filtered at the API)
       if (providerOverrides?.headers) Object.assign(headers, providerOverrides.headers);
 

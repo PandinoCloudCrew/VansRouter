@@ -6,6 +6,8 @@ const db = vi.hoisted(() => ({
   getCombos: vi.fn(),
   getCustomModels: vi.fn(async () => []),
   getModelAliases: vi.fn(async () => ({})),
+  getCachedProviderModels: vi.fn(async () => []),
+  saveCachedProviderModels: vi.fn(async () => {}),
 }));
 
 vi.mock("@/lib/localDb", () => db);
@@ -14,10 +16,12 @@ vi.mock("@/lib/disabledModelsDb", () => ({
 }));
 
 const { buildModelsList } = await import("../../src/app/api/v1/models/route.js");
+const { invalidateAllowedModelsCache } = await import("../../src/sse/services/allowedModels.js");
 
 const syncedLimits = { contextWindow: 180000, maxOutput: 16000 };
 
 async function modelsWithCombo(providerId, modelId, combos) {
+  invalidateAllowedModelsCache();
   db.getProviderConnections.mockResolvedValue([{
     id: 1,
     provider: providerId,
@@ -46,7 +50,7 @@ describe("/v1/models combo limits", () => {
   ])("uses the real provider for a %s UI-alias seat", async (uiAlias, providerId, modelId) => {
     const combo = { name: "ui-alias-combo", models: [`${uiAlias}/${modelId}`] };
     const models = await modelsWithCombo(providerId, modelId, [combo]);
-    const published = models.find((model) => model.id === combo.name);
+    const published = models.find((model) => model.id === `combo/${combo.name}`);
 
     expect(published).toMatchObject({
       context_length: 180000,
@@ -60,7 +64,7 @@ describe("/v1/models combo limits", () => {
       { name: "inner-combo", models: ["ocg/mimo-v2.5"] },
       { name: "outer-combo", models: ["inner-combo"] },
     ]);
-    const outer = models.find((model) => model.id === "outer-combo");
+    const outer = models.find((model) => model.id === "combo/outer-combo");
 
     expect(outer).toMatchObject({
       context_length: 180000,
@@ -73,7 +77,7 @@ describe("/v1/models combo limits", () => {
     const models = await modelsWithCombo("devin-cli", "gpt-5.5-high", [
       { name: "devin-combo", models: ["dv/gpt-5.5-high"] },
     ]);
-    const combo = models.find((model) => model.id === "devin-combo");
+    const combo = models.find((model) => model.id === "combo/devin-combo");
 
     expect(combo).toMatchObject({
       context_length: 200000,

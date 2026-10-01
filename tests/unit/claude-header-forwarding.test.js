@@ -234,6 +234,7 @@ describe("DefaultExecutor.buildHeaders() — claude provider cold start (no cach
     const headers = executor.buildHeaders(
       { accessToken: "sk-ant-oat-test-token" },
       true,
+      undefined,
       "claude-opus-5",
       {
         metadata: {
@@ -249,6 +250,7 @@ describe("DefaultExecutor.buildHeaders() — claude provider cold start (no cach
     const headers = executor.buildHeaders(
       { apiKey: "sk-ant-api03-xxx" },
       true,
+      undefined,
       "claude-opus-5",
       {
         metadata: {

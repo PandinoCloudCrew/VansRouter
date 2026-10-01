@@ -3,6 +3,7 @@
 import { getCapabilitiesForModel } from "./capabilities.js";
 import { matchPattern } from "./pricing.js";
 import { resolveKiroEffortPath } from "../config/kiroConstants.js";
+import { getProviderModels } from "../config/providerModels.js";
 
 // Shared level sets (deduped) — verified against provider docs + wire in thinkingUnified.applyFormat.
 const L = {
@@ -43,13 +44,13 @@ const PATTERN_THINKING = [
   { provider: "codex", pattern: "*gpt-5.6-terra*", levels: CODEX_GPT_5_6_LEVELS },
   { pattern: "*claude*4.6*", levels: CLAUDE_NO_XHIGH },
   { pattern: "*claude*4-6*", levels: CLAUDE_NO_XHIGH },
-  // GPT-6.x are Responses-Lite models: they take the full effort ladder.
-  { provider: "codex", pattern: "*gpt-6*", levels: ["low", "medium", "high", "xhigh", "max"] },
+  // GPT-6.x takes the full effort ladder; the responses-lite Sol/Luna ids narrow
+  // it to low..max through their registry `thinkingLevels`.
+  { provider: "codex", pattern: "*gpt-6*", levels: CODEX_GPT_5_6_LEVELS },
   { provider: "codex", pattern: "*gpt-5.6-sol*", levels: [...CODEX_GPT_5_6_LEVELS, "ultra"] },
   { provider: "codex", pattern: "*gpt-5.6-terra*", levels: [...CODEX_GPT_5_6_LEVELS, "ultra"] },
   { provider: "codex", pattern: "*gpt-5.6-luna*", levels: CODEX_GPT_5_6_LEVELS },
   { pattern: "*gpt-5.6-sol*", levels: ["none", "minimal", "low", "medium", "high", "xhigh", "max"] },
-  { pattern: "*claude*opus-5*", levels: L.levelMax },
   { pattern: "*codex*", levels: ["low", "medium", "high", "xhigh"] }, // codex cannot disable thinking
   // mimo-v2.5-pro/v2.6 on the opencode-go lane return 400 on reasoning_effort
   // "max" (probed live); plain mimo-v2.5 accepts it. Declaring the ceiling here
@@ -69,10 +70,17 @@ export function getThinkingLevels(provider, model) {
   if (provider === "kiro" && resolveKiroEffortPath(model) === null) return null;
   const caps = getCapabilitiesForModel(provider, model);
   if (!caps.reasoning) return null;
+  // A registry entry that pins `thinkingLevels` wins over the glob: the Codex
+  // responses-lite ids share a prefix with the full-ladder GPT-6 models but expose
+  // fewer levels. `model(level)` suffixes are stripped so the picker resolves too.
+  const baseId = String(model || "").replace(/\([^()]+\)\s*$/, "");
+  const modelLevels = provider === "codex"
+    ? getProviderModels("cx").find((entry) => entry.id === baseId)?.thinkingLevels
+    : null;
   const hit = PATTERN_THINKING.find((entry) =>
     (!entry.provider || entry.provider === provider) && matchPattern(entry.pattern, model)
   );
-  let levels = hit?.levels || FORMAT_LEVELS[caps.thinkingFormat] || L.base;
+  let levels = modelLevels || hit?.levels || FORMAT_LEVELS[caps.thinkingFormat] || L.base;
   if (caps.thinkingCanDisable === false) levels = levels.filter((l) => l !== "none");
   return levels;
 }
