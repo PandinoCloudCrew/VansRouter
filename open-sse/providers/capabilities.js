@@ -1135,7 +1135,7 @@ export const PATTERN_CAPABILITIES = [
     },
   },
   {
-    pattern: "*gpt-5*",
+    pattern: "*gpt-5-[0-3]*",
     caps: {
       vision: true,
       reasoning: true,
