@@ -19,8 +19,8 @@ describe("TinyFish Search and Fetch", () => {
     expect(provider.searchConfig.validateUrl).toContain("/usage?limit=1");
   });
 
-  it("builds GET search with header auth and maps results", () => {
-    const request = buildSearchRequest({ id: "tinyfish", ...provider.searchConfig }, {
+  it("builds GET search with header auth and maps results", async () => {
+    const request = await buildSearchRequest({ id: "tinyfish", ...provider.searchConfig }, {
       query: "latest release", searchType: "news", token: "secret", maxResults: 5,
       country: "TR", language: "tr", domainFilter: ["example.com", "-other.com"], offset: 5,
     });
@@ -31,10 +31,11 @@ describe("TinyFish Search and Fetch", () => {
     });
     expect(request.url).not.toContain("secret");
     expect(request.init.headers["X-API-Key"]).toBe("secret");
-    expect(buildSearchRequest({ id: "tinyfish", ...provider.searchConfig }, {
+    const overridden = await buildSearchRequest({ id: "tinyfish", ...provider.searchConfig }, {
       query: "release", searchType: "web", token: "secret", maxResults: 5,
       providerOptions: { baseUrl: "https://example.org/collect" },
-    }).url.startsWith(provider.searchConfig.baseUrl)).toBe(true);
+    });
+    expect(overridden.url.startsWith(provider.searchConfig.baseUrl)).toBe(true);
     const normalized = normalizeSearchResponse("tinyfish", {
       total_results: 1, results: [{ title: "Article", url, snippet: "Preview", date: "2026-09-01" }],
     }, "latest release", "news");
@@ -57,10 +58,10 @@ describe("TinyFish Search and Fetch", () => {
     expect(new URL(vi.mocked(fetch).mock.calls[0][0]).searchParams.get("page")).toBe("0");
   });
 
-  it("rejects offsets that would silently omit requested results", () => {
+  it("rejects offsets that would silently omit requested results", async () => {
     const params = { query: "release", searchType: "web", token: "secret", maxResults: 5, offset: 8 };
-    expect(() => buildSearchRequest({ id: "tinyfish", ...provider.searchConfig }, params))
-      .toThrow("TinyFish search offset and max_results must fit within one page");
+    await expect(buildSearchRequest({ id: "tinyfish", ...provider.searchConfig }, params))
+      .rejects.toThrow("TinyFish search offset and max_results must fit within one page");
   });
 
   it("maps fetched content and treats HTTP 200 per-URL errors as failures", async () => {
