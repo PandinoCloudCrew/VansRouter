@@ -346,6 +346,23 @@ export async function testOAuthConnection(connection, effectiveProxy = null) {
 
   // Cursor uses protobuf API - can only verify token exists, not test endpoint
   if (config.tokenExists) {
+    // Cursor sessions are JWTs: an expired one still "exists", so the token-exists
+    // strategy must inspect exp or an expired import reports as connected.
+    if (connection.provider === "cursor" && connection.accessToken) {
+      try {
+        const payload = JSON.parse(Buffer.from(String(connection.accessToken).split(".")[1], "base64url").toString("utf8"));
+        const exp = Number(payload?.exp);
+        if (Number.isFinite(exp)) {
+          const expMs = exp > 1e12 ? exp : exp * 1000;   // accept seconds and milliseconds
+          if (expMs <= Date.now()) {
+            return { valid: false, error: "Cursor token expired. Please re-import token from Cursor IDE." };
+          }
+        }
+      } catch {
+        // not a JWT — fall through to the plain existence check
+      }
+    }
+
     return { valid: true, error: null, refreshed: false, newTokens: null };
   }
 
