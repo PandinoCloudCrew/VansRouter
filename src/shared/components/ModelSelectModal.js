@@ -38,6 +38,7 @@ function useLiveProviderModels(isOpen, connectionIds, label) {
   useEffect(() => {
     const ids = idsKey ? idsKey.split("|") : [];
     if (!isOpen || ids.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing the list when the modal closes is the point of this effect
       setModels([]);
       return undefined;
     }
@@ -134,6 +135,7 @@ export default function ModelSelectModal({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load on open; the fetched data is external state
     if (isOpen) fetchCombos();
   }, [isOpen]);
 
@@ -150,6 +152,7 @@ export default function ModelSelectModal({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load on open; the fetched data is external state
     if (isOpen) fetchProviderNodes();
   }, [isOpen]);
 
@@ -166,6 +169,7 @@ export default function ModelSelectModal({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load on open; the fetched data is external state
     if (isOpen) fetchCustomModels();
   }, [isOpen]);
 
@@ -182,6 +186,7 @@ export default function ModelSelectModal({
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load on open; the fetched data is external state
     if (isOpen) fetchDisabledModels();
   }, [isOpen]);
 
