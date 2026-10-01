@@ -1,9 +1,11 @@
 # v0.91.60 (2026-10-01)
 
-116 commits over the v0.91.51 tag: an upstream sync to decolua/9router v0.5.95
+120 commits over the v0.91.51 tag: an upstream sync to decolua/9router v0.5.95
 cherry-picked commit by commit onto this fork, adding three OAuth-capable
 providers and GPT-6.1-era model support, followed by a repair pass over the
-conflicts the cherry-picks left behind. 266 files, +15408/-1376.
+conflicts the cherry-picks left behind, and finally a merge of upstream's
+grok-cli 426-gate fix that landed on `main` mid-release. 267 files,
++15526/-1378.
 
 ## Features
 
@@ -144,7 +146,7 @@ conflicts the cherry-picks left behind. 266 files, +15408/-1376.
 - `pnpm run build` → exit 0 ("build complete")
 - `npx eslint . --quiet --no-warn-ignored` → exit 0
 - `node scripts/lint-undef.cjs` → exit 0 ("no-undef lint: clean")
-- `pnpm test` → exit 0: 4133 passed | 121 skipped | 1 todo (4255), zero
+- `pnpm test` → exit 0: 4136 passed | 121 skipped | 1 todo (4258), zero
   failures, across 407 test files (389 passed / 18 skipped)
 
 ## Known gaps (not claimed as verified)
