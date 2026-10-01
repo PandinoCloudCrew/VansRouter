@@ -25,6 +25,8 @@ const HEADER_HOOKS = {
   // Stable device_id from OAuth connection (CLIProxyAPI KimiTokenStorage.DeviceID)
   kimiHeaders: (h, c) => Object.assign(h, buildKimiHeaders(c?.providerSpecificData?.deviceId)),
   kimchiHeaders: (h) => { h["User-Agent"] = getKimchiUserAgent(); },
+  // Muse: x-api-version only on subscription (minted key) requests — plain
+  museHeaders: (h, c) => { if (c?.accessToken && !c?.apiKey) h["x-api-version"] = "1.0.0"; },
   clineHeaders: (h, c) => Object.assign(h, buildClineHeaders(c.apiKey || c.accessToken)),
   kilocodeOrg: (h, c) => { if (c.providerSpecificData?.orgId) h["X-Kilocode-OrganizationID"] = c.providerSpecificData.orgId; },
   claudeOverlay: (h) => {

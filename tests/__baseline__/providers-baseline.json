@@ -258,10 +258,11 @@
     "baseUrl": "https://chatgpt.com/backend-api/codex/responses",
     "format": "openai-responses",
     "forceStream": true,
-    "cliVersion": "0.154.0",
+    "cliVersion": "0.155.0",
     "headers": {
       "originator": "codex_cli_rs",
-      "User-Agent": "codex_cli_rs/0.154.0"
+      "User-Agent": "codex_cli_rs/0.155.0",
+      "version": "0.155.0"
     },
     "usage": {
       "url": "https://chatgpt.com/backend-api/wham/usage",
@@ -1390,6 +1391,14 @@
     "baseUrl": "https://api.thehive.ai/api/v3/chat/completions",
     "format": "openai"
   },
+  "tokenharbor": {
+    "baseUrl": "https://tokenharbor.ai/v1/chat/completions",
+    "validateUrl": "https://tokenharbor.ai/v1/models",
+    "retry": {
+      "429": 2
+    },
+    "format": "openai"
+  },
   "dahl": {
     "baseUrl": "https://inference.dahl.global/v1/chat/completions",
     "validateUrl": "https://inference.dahl.global/v1/models",
@@ -1409,5 +1418,50 @@
     "baseUrl": "https://api.b.ai/v1/chat/completions",
     "validateUrl": "https://api.b.ai/v1/models",
     "format": "openai"
+<<<<<<< HEAD
+=======
+  },
+  "muse": {
+    "baseUrl": "https://api.meta.ai/v1/chat/completions",
+    "validateUrl": "https://api.meta.ai/v1/models",
+    "modelsUrl": "https://api.meta.ai/v1/models",
+    "auth": {
+      "combined": true,
+      "header": "Authorization",
+      "scheme": "bearer",
+      "hooks": [
+        "museHeaders"
+      ]
+    },
+    "format": "openai",
+    "clientId": "1031625952748946",
+    "tokenUrl": "https://auth.meta.com/oidc/device/token/",
+    "transports": [
+      {
+        "format": "openai",
+        "baseUrl": "https://api.meta.ai/v1/chat/completions",
+        "auth": {
+          "combined": true,
+          "header": "Authorization",
+          "scheme": "bearer",
+          "hooks": [
+            "museHeaders"
+          ]
+        }
+      },
+      {
+        "format": "openai-responses",
+        "baseUrl": "https://api.meta.ai/v1/responses",
+        "auth": {
+          "combined": true,
+          "header": "Authorization",
+          "scheme": "bearer",
+          "hooks": [
+            "museHeaders"
+          ]
+        }
+      }
+    ]
+>>>>>>> 28809807 (feat(muse): add Meta Muse provider with OAuth login and model catalog)
   }
 }

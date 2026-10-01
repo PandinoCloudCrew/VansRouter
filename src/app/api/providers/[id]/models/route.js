@@ -129,6 +129,14 @@ const buildOAuthResolver = ({ refreshFn, fetchFn, parseFn, errorLabel }) => asyn
 
 // Provider models endpoints configuration
 const PROVIDER_MODELS_CONFIG = {
+  "muse": {
+    url: "https://api.meta.ai/v1/models",
+    method: "GET",
+    headers: { "Content-Type": "application/json", "x-api-version": "1.0.0" },
+    authHeader: "Authorization",
+    authPrefix: "Bearer ",
+    parseResponse: (data) => data.data || [],
+  },
   claude: {
     url: "https://api.anthropic.com/v1/models",
     method: "GET",

@@ -155,7 +155,7 @@ import p152 from "./dahl.js";
 import p153 from "./atria.js";
 import p154 from "./agnes.js";
 import p155 from "./bai.js";
-import p156 from "./tinyfish.js";
+import pimport p157 from "./muse.js";
 
 export default [
   p0,
@@ -315,5 +315,6 @@ export default [
   p153,
   p154,
   p155,
-  p156
+  p156,
+  p157
 ];
