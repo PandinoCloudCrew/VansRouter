@@ -6,8 +6,7 @@
 //   3. PATTERN_CAPABILITIES                     — glob match, ordered specific -> generic
 //   4. DEFAULT_CAPABILITIES                     — safe floor (always returned)
 //
-<<<<<<< HEAD
-=======
+
 // Two extra layers then refine the result:
 //   • the synced catalog — modalities keyed by model, limits keyed by provider
 //     + model, refreshed from models.dev in the background. It reads a file, so
@@ -21,7 +20,6 @@
 // short-circuits: a hand-written PROVIDER_CAPABILITIES truncation is the
 // gateway's own number and must not be overwritten.
 //
->>>>>>> 89ffac5a (fix(capabilities): publish real GPT-6/GPT-5.4+ context windows and combo token limits)
 // ── HOW TO ADD / UPDATE A MODEL ──────────────────────────────────────
 // Authoritative data source: https://models.dev/api.json (145 providers, 4000+
 // models, MIT). Each model exposes the exact fields we map below:
@@ -1032,7 +1030,6 @@ export const PATTERN_CAPABILITIES = [
   },
 
   // ── Gemini (all 2.0+ multimodal + google_search grounding, 1M ctx) ─
-<<<<<<< HEAD
   {
     pattern: "*gemini*image*",
     caps: { vision: true, imageOutput: true, contextWindow: 1048576 },
@@ -1168,7 +1165,6 @@ export const PATTERN_CAPABILITIES = [
     pattern: "*gpt-oss*",
     caps: { reasoning: true, thinkingFormat: "openai", contextWindow: 128000 },
   },
-=======
   { pattern: "*gemini*image*",  caps: { vision: true, imageOutput: true, contextWindow: 1048576 } },
   { pattern: "*gemini-3.8*",    caps: { vision: true, audioInput: true, videoInput: true, reasoning: true, search: true, thinkingFormat: "gemini-level", thinkingCanDisable: false, contextWindow: 1048576, maxOutput: 65536 } },
   { pattern: "*gemini-3.7*",    caps: { vision: true, audioInput: true, videoInput: true, reasoning: true, search: true, thinkingFormat: "gemini-level", thinkingCanDisable: false, contextWindow: 1048576, maxOutput: 65536 } },
@@ -1179,7 +1175,6 @@ export const PATTERN_CAPABILITIES = [
   { pattern: "*gemini*",        caps: { vision: true, search: true, contextWindow: 1048576 } },
   { pattern: "*gemma*",         caps: { vision: true, contextWindow: 128000 } },
   { pattern: "*nanobanana*",    caps: { vision: true, imageOutput: true } },
-
   // ── OpenAI GPT-6.x (vision + thinking + web search) ──────────────
   // 1.05M is the API window for the whole gpt-6 family (astra, luna, sol alike).
   // A gateway that truncates lower records its own number in
@@ -1188,8 +1183,6 @@ export const PATTERN_CAPABILITIES = [
   // Kiro's 272k, so every other provider's gpt-6 models inherited one gateway's
   // limit and were published at 3.9x under their real window.
   { pattern: "*gpt-6*",         caps: { vision: true, reasoning: true, search: true, thinkingFormat: "openai", contextWindow: 1050000, maxOutput: 128000 } },
-
-  // ── OpenAI GPT-5.x (vision + thinking + web search) ──────────────
   { pattern: "*gpt-5*image*",   caps: { imageOutput: true } },
   { pattern: "*gpt-5*codex*",   caps: { reasoning: true, search: true, thinkingFormat: "openai", contextWindow: 400000, maxOutput: 128000 } },
   // gpt-5.4 is where the 1.05M window starts, but the mini and nano tiers stayed
@@ -1206,7 +1199,6 @@ export const PATTERN_CAPABILITIES = [
   { pattern: "*gpt-4*",         caps: { contextWindow: 128000 } },
   { pattern: "*gpt-3.5*",       caps: { contextWindow: 16385, maxOutput: 4096 } },
   { pattern: "*gpt-oss*",       caps: { reasoning: true, thinkingFormat: "openai", contextWindow: 128000 } },
->>>>>>> 89ffac5a (fix(capabilities): publish real GPT-6/GPT-5.4+ context windows and combo token limits)
 
   // ── OpenAI o-series (reasoning, vision) ──────────────────────────
   {
@@ -1770,18 +1762,15 @@ export function getCapabilitiesForModel(provider, model) {
       return { ...DEFAULT_CAPABILITIES, ...providerCaps[baseModel] };
   }
 
-<<<<<<< HEAD
   // 2. Canonical exact
   if (MODEL_CAPABILITIES[baseModel])
     return { ...DEFAULT_CAPABILITIES, ...MODEL_CAPABILITIES[baseModel] };
   if (MODEL_CAPABILITIES[model])
     return { ...DEFAULT_CAPABILITIES, ...MODEL_CAPABILITIES[model] };
-=======
   // 2. Canonical exact, then catalog overlay so provider-scoped models.dev
   //    deltas still apply. Step 1 above still short-circuits.
   if (MODEL_CAPABILITIES[baseModel]) return refine(MODEL_CAPABILITIES[baseModel], provider, model);
   if (MODEL_CAPABILITIES[model]) return refine(MODEL_CAPABILITIES[model], provider, model);
->>>>>>> 89ffac5a (fix(capabilities): publish real GPT-6/GPT-5.4+ context windows and combo token limits)
 
   // 3. Pattern match (first match wins), refined by catalog + name heuristic
   for (const { pattern, caps } of PATTERN_CAPABILITIES) {
