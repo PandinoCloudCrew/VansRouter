@@ -81,6 +81,8 @@ pipeline found by an internal thermo-nuclear audit. 150 files, +6275/-475.
   `hookTimeout: 30000`; the 10s default was the source of the intermittent hook
   timeouts in `xai-oauth-service.test.js`.
 - Full suite green on this commit (see the validation section below).
+- Golden url/header snapshots mask version-valued headers (`0.91.x` → `<VER>`), so
+  a release bump no longer churns them.
 
 ## Known gaps (not claimed as verified)
 
