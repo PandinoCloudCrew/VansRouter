@@ -125,22 +125,10 @@ function isContentfulBlock(block) {
 
 export function hasValidContent(msg) {
   if (typeof msg.content === "string" && msg.content.trim()) return true;
-  const content = msg.content && typeof msg.content === "object" && !Array.isArray(msg.content) ? [msg.content] : msg.content;
-  if (Array.isArray(content)) {
-    return content.some(block =>
-      (block.type === CLAUDE_BLOCK.TEXT && block.text?.trim()) ||
-      block.type === CLAUDE_BLOCK.TOOL_USE ||
-      block.type === CLAUDE_BLOCK.TOOL_RESULT ||
-      block.type === CLAUDE_BLOCK.IMAGE ||
-      block.type === CLAUDE_BLOCK.DOCUMENT
-    );
-  }
-  if (msg.content && typeof msg.content === "object" && !Array.isArray(msg.content)) {
-    return isContentfulBlock(msg.content);
-  }
-  if (Array.isArray(msg.content)) {
-    return msg.content.some(isContentfulBlock);
-  }
+  const content = msg.content && typeof msg.content === "object" && !Array.isArray(msg.content)
+    ? [msg.content]
+    : msg.content;
+  if (Array.isArray(content)) return content.some(isContentfulBlock);
   return false;
 }
 
