@@ -445,12 +445,6 @@ export const MODEL_CAPABILITIES = {
     contextWindow: 500000,
     maxOutput: 500000,
   },
-  "gpt-5.6-luna": {
-    reasoning: true,
-    thinkingFormat: "openai",
-    contextWindow: 1100000,
-    maxOutput: 128888,
-  },
 };
 
 const KIRO_GPT_5_6_CAPABILITIES = {
@@ -1762,11 +1756,6 @@ export function getCapabilitiesForModel(provider, model) {
       return { ...DEFAULT_CAPABILITIES, ...providerCaps[baseModel] };
   }
 
-  // 2. Canonical exact
-  if (MODEL_CAPABILITIES[baseModel])
-    return { ...DEFAULT_CAPABILITIES, ...MODEL_CAPABILITIES[baseModel] };
-  if (MODEL_CAPABILITIES[model])
-    return { ...DEFAULT_CAPABILITIES, ...MODEL_CAPABILITIES[model] };
   // 2. Canonical exact, then catalog overlay so provider-scoped models.dev
   //    deltas still apply. Step 1 above still short-circuits.
   if (MODEL_CAPABILITIES[baseModel]) return refine(MODEL_CAPABILITIES[baseModel], provider, model);
