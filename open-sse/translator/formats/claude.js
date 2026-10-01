@@ -58,6 +58,29 @@ function capCacheControlBlocks(body) {
   }
 }
 
+
+export function hoistToolResultImages(body) {
+  if (!Array.isArray(body?.messages)) return body;
+  let touched = false;
+  const messages = body.messages.map((msg) => {
+    if (msg?.role !== ROLE.USER || !Array.isArray(msg.content)) return msg;
+    const hoisted = [];
+    const content = msg.content.map((block) => {
+      if (block?.type !== CLAUDE_BLOCK.TOOL_RESULT || !Array.isArray(block.content)) return block;
+      const images = block.content.filter((c) => c?.type === CLAUDE_BLOCK.IMAGE);
+      if (!images.length) return block;
+      const rest = block.content.filter((c) => c?.type !== CLAUDE_BLOCK.IMAGE);
+      hoisted.push({ type: CLAUDE_BLOCK.TEXT, text: `[Image from tool result ${block.tool_use_id}]` }, ...images);
+      return { ...block, content: rest.length ? rest : [{ type: CLAUDE_BLOCK.TEXT, text: "(image attached below)" }] };
+    });
+    if (!hoisted.length) return msg;
+    touched = true;
+    // tool_result blocks must lead a user message; the hoisted image follows them.
+    return { ...msg, content: [...content, ...hoisted] };
+  });
+  return touched ? { ...body, messages } : body;
+}
+
 export function anchorClaudeCache(body) {
   if (!body || typeof body !== "object") return body;
   for (const msg of body.messages || []) normalizeMessageContent(msg);
@@ -84,6 +107,8 @@ export function anchorClaudeCache(body) {
 // send alone must be listed. container_upload (Files API) is one of those:
 // a user turn whose only block is a file reference is valid Anthropic input
 // (#4316), and dropping it forwarded `messages: []` to the provider.
+const CACHE_CONTROL_5M = { type: "ephemeral" };
+
 const CONTENTFUL_BLOCKS = new Set([
   CLAUDE_BLOCK.TOOL_USE,
   CLAUDE_BLOCK.TOOL_RESULT,
@@ -109,6 +134,7 @@ export function hasValidContent(msg) {
       block.type === CLAUDE_BLOCK.IMAGE ||
       block.type === CLAUDE_BLOCK.DOCUMENT
     );
+  }
   if (msg.content && typeof msg.content === "object" && !Array.isArray(msg.content)) {
     return isContentfulBlock(msg.content);
   }
@@ -285,6 +311,7 @@ export function normalizeClaudePassthrough(body, model = "") {
     }
   }
 
+  const droppedServerToolUseIds = new Set();
   // A dropped server_tool_use leaves its result behind; Anthropic rejects a
   // tool_result that references an id no block declares, so both halves must go.
   if (droppedServerToolUseIds.size > 0 && Array.isArray(body.messages)) {
