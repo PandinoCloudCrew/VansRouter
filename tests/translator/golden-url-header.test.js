@@ -33,6 +33,9 @@ function sanitize(headers) {
       ? v.replace(/Bearer .+/, "Bearer <TOK>")
           .replace(/sk-test-APIKEY|tok-test-ACCESS/g, "<CRED>")
           .replace(/kimi-\d{10,}/g, "kimi-<TS>")
+          // Version headers (X-Msh-Version et al) track package.json, so a release
+          // bump would otherwise churn every snapshot.
+          .replace(/^\d+\.\d+\.\d+$/, "<VER>")
           .replace(new RegExp(dynamicValues.map(escapeRegExp).join("|"), "g"), "<ENV>")
       : v;
   }
