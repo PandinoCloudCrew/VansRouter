@@ -982,6 +982,20 @@ export const PATTERN_CAPABILITIES = [
     },
   },
   {
+    // Sonnet 5.x (5, 5.5) takes adaptive thinking and the 1M window; both the
+    // dotted and hyphenated spellings must land here, ahead of the generic
+    // *claude*sonnet* rule that would otherwise send a thinking budget.
+    pattern: "*claude*sonnet-5*",
+    caps: {
+      vision: true,
+      reasoning: true,
+      search: true,
+      thinkingFormat: "claude-adaptive",
+      contextWindow: 1000000,
+      maxOutput: 128000,
+    },
+  },
+  {
     pattern: "*claude*sonnet*",
     caps: {
       vision: true,
