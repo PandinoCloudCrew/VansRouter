@@ -497,7 +497,6 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       ponytailLevel: chatSettings.ponytailLevel || "full",
       loopGuardEnabled: chatSettings.loopGuardEnabled !== false && chatSettings.loopGuardEnabled !== 0,
       providerThinking,
-<<<<<<< HEAD
       clientSignal,
       resolveProxyConfig: async (creds, excludePoolIds = []) => {
         const psd = { ...(creds?.providerSpecificData || {}) };
@@ -514,10 +513,6 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
           strictProxy: resolved.strictProxy === true,
         };
       },
-=======
-      // Per-provider user overrides (custom headers / connect timeout) from settings
-      providerOverrides: (chatSettings.providerOverrides || {})[provider] || null,
->>>>>>> b3cf3fde (feat(providers): per-provider custom header overrides from the registry)
       // Detect source format by endpoint + body
       sourceFormatOverride: request?.url ? detectFormatByEndpoint(new URL(request.url).pathname, body) : null,
       onCredentialsRefreshed: async (newCreds) => {

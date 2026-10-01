@@ -45,15 +45,6 @@ const DEFAULT_SETTINGS = {
   cavemanLevel: "full",
   ponytailEnabled: false,
   ponytailLevel: "full",
-<<<<<<< HEAD
-=======
-  pxpipeEnabled: false,
-  pxpipeAutoInstall: true,
-  pxpipeMinChars: 25000,
-  pxpipeTimeoutMs: 15000,
-  // Per-provider user header overrides applied at dispatch: { [providerId]: { headers: {..} } }
-  providerOverrides: {},
->>>>>>> b3cf3fde (feat(providers): per-provider custom header overrides from the registry)
 };
 
 async function readRaw() {

@@ -93,39 +93,7 @@
     "polly": "aws-polly",
     "aws-polly": "aws-polly",
     "bb": "blackbox",
-<<<<<<< HEAD
     "blackbox": "blackbox"
-=======
-    "blackbox": "blackbox",
-    "af": "api-airforce",
-    "airforce": "api-airforce",
-    "api-airforce": "api-airforce",
-    "llm7": "llm7",
-    "llm-7": "llm7",
-    "samba": "sambanova",
-    "sambanova": "sambanova",
-    "bm": "bluesminds",
-    "bluesminds": "bluesminds",
-    "bzl": "bazaarlink",
-    "bazaarlink": "bazaarlink",
-    "kgw": "kilo-gateway",
-    "kilo-gateway": "kilo-gateway",
-    "hunyuan": "tencent",
-    "tencent": "tencent",
-    "qianfan": "baidu",
-    "baidu": "baidu",
-    "ernie": "baidu",
-    "dv": "dv",
-    "devin": "devin",
-    "devin-cli": "devin-cli",
-    "morph": "morph",
-    "morphllm": "morph",
-    "muse": "muse",
-    "muse-ai": "muse",
-    "meta-model-api": "muse",
-    "muse-code": "muse",
-    "muse-subscription": "muse"
->>>>>>> 28809807 (feat(muse): add Meta Muse provider with OAuth login and model catalog)
   },
   "idToAlias": {
     "a6api": "a6api",
@@ -203,11 +171,7 @@
     "mistral": "mistral",
     "mmf": "mmf",
     "morph": "morph",
-<<<<<<< HEAD
     "muse-spark-web": "muse-spark-web",
-=======
-    "muse": "muse",
->>>>>>> 28809807 (feat(muse): add Meta Muse provider with OAuth login and model catalog)
     "nanobanana": "nanobanana",
     "nanogpt": "nanogpt",
     "nebius": "nebius",
@@ -256,13 +220,9 @@
     "a6api",
     "af",
     "ag",
-<<<<<<< HEAD
     "agentrouter",
     "ai21",
     "ali",
-=======
-    "agnes",
->>>>>>> 28809807 (feat(muse): add Meta Muse provider with OAuth login and model catalog)
     "alicode",
     "alicode-intl",
     "alims-intl",
@@ -336,11 +296,7 @@
     "mistral",
     "mmf",
     "morph",
-<<<<<<< HEAD
     "muse-spark-web",
-=======
-    "muse",
->>>>>>> 28809807 (feat(muse): add Meta Muse provider with OAuth login and model catalog)
     "nanobanana",
     "nanogpt",
     "nebius",
@@ -380,11 +336,7 @@
     "together",
     "tokenharbor",
     "tokenrouter",
-<<<<<<< HEAD
     "upstage",
-=======
-    "v1m",
->>>>>>> 28809807 (feat(muse): add Meta Muse provider with OAuth login and model catalog)
     "venice",
     "vertex",
     "vertex-partner",

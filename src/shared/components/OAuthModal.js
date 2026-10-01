@@ -183,12 +183,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         "codebuddy-intl",
         "qoder",
         "grok-cli",
-<<<<<<< HEAD
         "freebuff",
-=======
-        "muse",
-<<<<<<< HEAD
->>>>>>> 28809807 (feat(muse): add Meta Muse provider with OAuth login and model catalog)
 =======
         "glm",
 >>>>>>> 068ce87d (feat(glm): add Z.ai OAuth login to GLM Coding (dual-auth))

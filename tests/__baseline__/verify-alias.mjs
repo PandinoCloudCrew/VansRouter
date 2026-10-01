@@ -20,14 +20,6 @@ const ALIAS_TOKENS = [
   "xmtp","xiaomi-tokenplan","cf",
   "cloudflare-ai","fal","fal-ai","stability","stability-ai","bfl","black-forest-labs","recraft",
   "topaz","runway","runwayml","jina","jina-ai","polly","aws-polly","bb","blackbox",
-<<<<<<< HEAD
-=======
-  "af","airforce","api-airforce","llm7","llm-7","samba","sambanova","bm","bluesminds",
-  "bzl","bazaarlink","kgw","kilo-gateway","hunyuan","tencent","qianfan","baidu","ernie",
-  "dv","devin","devin-cli","morph","morphllm",
-  "muse","muse-ai","meta-model-api",
-  "muse-code","muse-subscription",
->>>>>>> 28809807 (feat(muse): add Meta Muse provider with OAuth login and model catalog)
 ];
 
 // Sort idToAlias by key — runtime accesses by key, order is irrelevant (content-based)
