@@ -1,3 +1,4 @@
+import { getProviderModels } from "../config/providerModels.js";
 import { BaseExecutor } from "./base.js";
 import { CODEX_DEFAULT_INSTRUCTIONS } from "../config/codexInstructions.js";
 import { PROVIDERS } from "../config/providers.js";
@@ -24,6 +25,11 @@ const CODEX_SSE_USER_OUTPUT_PATTERNS = [
   '"type":"response.function_call_arguments.delta"',
 ];
 const CODEX_SSE_PEEK_BYTES = 256 * 1024;
+function isCodexResponsesLiteModel(model) {
+  const baseId = String(model || "").replace(/\([^()]+\)\s*$/, "");
+  return getProviderModels("cx").some((entry) => entry.id === baseId && entry.responsesLite === true);
+}
+
 const CODEX_MODEL_CAPACITY_MESSAGE = "Selected model is at capacity. Please try a different model.";
 
 // Server-generated item id prefixes that Codex /responses cannot resolve when store=false
