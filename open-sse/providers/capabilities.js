@@ -457,6 +457,12 @@ export const PROVIDER_CAPABILITIES = {
       thinkingFormat: "openai",
       thinkingCanDisable: false,
       contextWindow: 1000000,
+      // Verified live 2026-10-01 through /v1/chat/completions against
+      // api.thehive.ai: the stream closes with finish_reason "tool_calls" after
+      // a single delta that carries function.name and no arguments at all
+      // (completion_tokens: 1). The same route preserves arguments for
+      // hive/deepseek-v4.1-flash, so this is upstream, not the translator.
+      tools: false,
     },
   },
   // Kimchi provider — exactly the 4 models advertised by the Kimchi CLI.

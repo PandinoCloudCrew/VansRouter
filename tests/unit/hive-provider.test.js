@@ -70,6 +70,10 @@ describe("Hive AI provider", () => {
       // Reasoning streams on every turn regardless of request params, so a client
       // must not be told it can switch thinking off.
       expect(caps.thinkingCanDisable, model).toBe(false);
+      // Live 2026-10-01: Hive's GLM stream closes the tool call after
+      // function.name with no arguments (completion_tokens: 1), while the same
+      // route keeps them for DeepSeek — so GLM must not advertise tool calling.
+      expect(caps.tools, model).toBe(model.endsWith("glm-5.3-flash") ? false : true);
     }
   });
 
