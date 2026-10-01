@@ -29,8 +29,9 @@ export async function resolveCliApiKey(callerKey) {
   try {
     const keys = await getApiKeys();
     const active = keys.find((k) => k.isActive);
-    return active?.key || "";
+    // No dashboard key yet: the CLI configs expect the documented placeholder.
+    return active?.key || "sk_9router";
   } catch {
-    return "";
+    return "sk_9router";
   }
 }
