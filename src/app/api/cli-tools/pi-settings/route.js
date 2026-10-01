@@ -8,6 +8,18 @@ import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
 
+// Pi's config is JSONC in practice (trailing commas, // comments). JSON.parse
+// rejects both, which silently reset the whole file — including the user's theme
+// and unrelated providers — on every write.
+const parseJsonc = (raw) => {
+  const stripped = raw
+    .replace(/^\s*\/\/.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(stripped);
+};
+
+
 const execAsync = promisify(exec);
 
 const getPiModelsJsonPath = () => {
@@ -68,7 +80,7 @@ const readConfig = async () => {
   try {
     const targetPath = await resolveModelsJsonPath();
     const content = await fs.readFile(targetPath, "utf-8");
-    return JSON.parse(content);
+    return parseJsonc(content);
   } catch {
     return null;
   }
@@ -119,7 +131,7 @@ export async function POST(request) {
     let existing = {};
     try {
       const raw = await fs.readFile(configPath, "utf-8");
-      existing = JSON.parse(raw);
+      existing = parseJsonc(raw);
     } catch {
       /* No existing config */
     }
@@ -172,7 +184,7 @@ export async function DELETE() {
     let existing = {};
     try {
       const raw = await fs.readFile(configPath, "utf-8");
-      existing = JSON.parse(raw);
+      existing = parseJsonc(raw);
     } catch {
       return NextResponse.json({ success: true, message: "No config file to reset" });
     }
