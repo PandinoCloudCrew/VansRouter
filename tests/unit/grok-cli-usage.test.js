@@ -339,7 +339,7 @@ describe("getUsageForProvider(grok-cli)", () => {
     });
 
     expect(usage.message).toBeUndefined();
-    expect(usage.plan).toBe("SuperGrok Heavy");
+    expect(usage.plan).toBe("XPremiumPlus");
     expect(usage.quotas["Weekly SuperGrok"]).toMatchObject({
       used: 35,
       total: 100,

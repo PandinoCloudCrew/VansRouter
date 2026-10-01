@@ -184,9 +184,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         "qoder",
         "grok-cli",
         "freebuff",
-=======
         "glm",
->>>>>>> 068ce87d (feat(glm): add Z.ai OAuth login to GLM Coding (dual-auth))
       ];
       if (deviceCodeProviders.includes(provider)) {
         setIsDeviceCode(true);
