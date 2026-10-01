@@ -1,10 +1,8 @@
 /**
  * Grok CLI / Grok Build (cli-chat-proxy.grok.com)
  *
- * Source of truth: wire capture of the official @xai-official/grok client talking
- * to https://cli-chat-proxy.grok.com (OpenAI Responses API). The client version
- * is no longer the captured value — see open-sse/config/grokCli.js (upstream
- * gates on it with HTTP 426, issue #153).
+ * Source of truth: wire capture of official @xai-official/grok 1.0.44
+ * talking to https://cli-chat-proxy.grok.com (OpenAI Responses API).
  *
  * Distinct from:
  *  - `xai`      → api.x.ai (API key / xAI API OAuth PKCE)
@@ -75,11 +73,6 @@ export default {
       contextLength: 500000,
       maxOutputTokens: 64000,
     },
-    { id: "grok-4.6", name: "Grok 4.6" },
-    { id: "grok-4.6-xhigh", name: "Grok 4.6 (Extra High)", upstreamModelId: "grok-4.6" },
-    { id: "grok-4.6-high", name: "Grok 4.6 (High)", upstreamModelId: "grok-4.6" },
-    { id: "grok-4.6-medium", name: "Grok 4.6 (Medium)", upstreamModelId: "grok-4.6" },
-    { id: "grok-4.6-low", name: "Grok 4.6 (Low)", upstreamModelId: "grok-4.6" },
     { id: "grok-4.5", name: "Grok 4.5" },
     { id: "grok-4.5-high", name: "Grok 4.5 (High)", upstreamModelId: "grok-4.5" },
     { id: "grok-4.5-medium", name: "Grok 4.5 (Medium)", upstreamModelId: "grok-4.5" },
