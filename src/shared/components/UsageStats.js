@@ -15,10 +15,22 @@ import Card from "./Card";
 import OverviewCards from "@/app/(dashboard)/dashboard/usage/components/OverviewCards";
 import UsageTable, { fmt, fmtTime } from "@/app/(dashboard)/dashboard/usage/components/UsageTable";
 import dynamic from "next/dynamic";
-const ProviderTopology = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/ProviderTopology"), { ssr: false });
-const UsageChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/UsageChart"), { ssr: false });
-const ProviderBarChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/ProviderBarChart"), { ssr: false });
-const TopModelsChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/TopModelsChart"), { ssr: false });
+// Panel-sized placeholder for a single topology column, shared with
+// topologySkeleton so the two cannot drift (see its comment below).
+const TOPOLOGY_PANEL_CLASS = "h-[320px] w-full animate-pulse rounded-lg border border-border bg-bg-subtle/50 sm:h-[480px]";
+const topologyPanelSkeleton = <div className={TOPOLOGY_PANEL_CLASS} aria-hidden="true" />;
+
+// ponytail: two independent guards, both needed. `loading:` (below) keeps the
+// skeleton up for the whole chunk fetch, so the area never collapses mid-fetch;
+// the parent's `chartsReady` gate keeps ~721KB of recharts + reactflow off the
+// critical path so the page is interactive first. Drop either one and you
+// regress one half: without `loading:` the chart area goes 0px mid-fetch,
+// without the gate recharts lands ~300ms earlier and TBT climbs back to ~3.5s.
+
+const ProviderTopology = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/ProviderTopology"), { ssr: false, loading: () => topologyPanelSkeleton });
+const UsageChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/UsageChart"), { ssr: false, loading: () => chartSkeleton });
+const ProviderBarChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/ProviderBarChart"), { ssr: false, loading: () => chartSkeleton });
+const TopModelsChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/TopModelsChart"), { ssr: false, loading: () => chartSkeleton });
 
 // Skeleton placeholders sized to match the final content so the layout does
 // not shift (CLS) when data arrives. Keep dimensions in sync with the real
@@ -33,8 +45,8 @@ const overviewSkeleton = (
 
 const topologySkeleton = (
   <div className="grid min-w-0 grid-cols-1 gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-    <div className="h-[320px] w-full animate-pulse rounded-lg border border-border bg-bg-subtle/50 sm:h-[480px]" aria-hidden="true" />
-    <div className="h-[320px] w-full animate-pulse rounded-lg border border-border bg-bg-subtle/50 sm:h-[480px]" aria-hidden="true" />
+    {topologyPanelSkeleton}
+    {topologyPanelSkeleton}
   </div>
 );
 
@@ -289,6 +301,18 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
   const hasLoadedStats = useRef(false);
   const period = periodProp ?? periodLocal;
   const setPeriod = setPeriodProp ?? setPeriodLocal;
+  // Hold the charts (recharts + reactflow, ~721KB) until the page is idle, so the
+  // first input is not competing with their parse. The `loading:` fallbacks on the
+  // dynamic() chunks keep skeletons in place while they fetch.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(() => setChartsReady(true), { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = setTimeout(() => setChartsReady(true), 200);
+    return () => clearTimeout(timer);
+  }, []);
   // Fetch connected providers once, deduplicate by provider type
   // Always include noAuth free providers (e.g. opencode) regardless of connections
   useEffect(() => {
@@ -319,16 +343,6 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       })
       .catch(() => {});
     return () => controller.abort();
-  }, []);
-  // Defer recharts (~482KB) until the first idle moment so the page becomes
-  // interactive before the charts hydrate.
-  useEffect(() => {
-    if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(() => setChartsReady(true), { timeout: 2000 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const timer = setTimeout(() => setChartsReady(true), 200);
-    return () => clearTimeout(timer);
   }, []);
   // Fetch filtered stats via REST when period changes
   useEffect(() => {
