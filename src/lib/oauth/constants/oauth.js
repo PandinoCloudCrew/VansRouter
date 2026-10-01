@@ -119,10 +119,6 @@ export const KIMCHI_CONFIG = { ...PROVIDER_OAUTH["kimchi"] };
 // Endpoint: cli-chat-proxy.grok.com — same client_id as xai, different flow + scopes
 export const GROK_CLI_CONFIG = { ...PROVIDER_OAUTH["grok-cli"] };
 
-<<<<<<< HEAD
-// Freebuff OAuth Configuration (Device Code Flow)
-export const FREEBUFF_CONFIG = { ...PROVIDER_OAUTH["freebuff"] };
-=======
 // Muse — subscription device code flow to auth.meta.com, no refresh
 // (Meta rejects refresh_token grants; the minted Model API key never expires).
 export const MUSE_CONFIG = { ...PROVIDER_OAUTH["muse"] };
@@ -201,6 +197,13 @@ export const WINDSURF_CONFIG = {
   oauthTimeoutMs: 600_000,
 };
 
+// GLM Coding (Z.ai) OAuth — ZCode CLI polling flow (NOT PKCE): init mints a
+// one-off poll token, the browser opens the server-generated authorize_url,
+// poll/ready returns the tokens. The Z.AI OAuth token is then exchanged for a
+// platform business JWT and finally a long-lived coding-plan API key (no
+// refresh grant).
+export const GLM_OAUTH_CONFIG = { ...PROVIDER_OAUTH["glm"] };
+
 // Zed hosted LLM aggregator — RSA keypair native-app auth (NOT OAuth).
 // Client generates ephemeral RSA-2048 keypair; user signs in at zed.dev/native_app_signin;
 // Zed redirects to local callback with access_token RSA-encrypted against our public key.
@@ -212,7 +215,6 @@ export const ZED_HOSTED_CONFIG = {
   defaultNativeAppPort: 58443,
   oauthTimeoutMs: 600_000,
 };
->>>>>>> 28809807 (feat(muse): add Meta Muse provider with OAuth login and model catalog)
 
 // OAuth timeout (5 minutes)
 export const OAUTH_TIMEOUT = 300000;
@@ -240,5 +242,8 @@ export const PROVIDERS = {
   ZCODE: "zcode",
   KIMCHI: "kimchi",
   GROK_CLI: "grok-cli",
-  FREEBUFF: "freebuff",
+  TRAE: "trae",
+  WINDSURF: "windsurf",
+  GLM: "glm",
+  ZED: "zed",
 };
