@@ -106,6 +106,12 @@ conflicts the cherry-picks left behind. 266 files, +15408/-1376.
 
 ## Reliability & Compatibility
 
+- **Grok CLI upstream merge (#153)**: merged upstream's
+  `fix(grok-cli): bump advertised client version past the 426 upgrade gate`.
+  Our implementation already pins `1.0.44` (superseding the upstream `1.0.13`
+  default) and keeps the `GROK_CLI_VERSION` env override, so every conflict
+  resolved in our favour; no stale `0.2.93`/`0.2.99` fingerprint survives.
+  Adopted upstream's documented `GROK_CLI_VERSION` row in `README.md`.
 - **Cherry-pick repair pass**: the v0.5.95 conflict resolutions re-introduced a
   duplicate `buildModelsList`/`capabilitiesFromServiceKind` in
   `src/app/api/v1/models/route.js` that broke the build; restored the 97-line
