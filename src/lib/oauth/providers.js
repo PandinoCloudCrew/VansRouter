@@ -5,7 +5,7 @@
 
 // Ensure outbound fetch respects HTTP(S)_PROXY/ALL_PROXY in Node runtime
 import "open-sse/index.js";
-import { GROK_CLI_VERSION as GROK_CLI_CLIENT_VERSION } from "open-sse/config/grokCli.js";
+import { GROK_CLI_BASE_URL, GROK_CLI_VERSION as GROK_CLI_CLIENT_VERSION } from "open-sse/config/grokCli.js";
 import crypto from "crypto";
 import os from "os";
 
@@ -354,7 +354,7 @@ const PROVIDERS = {
     postExchange: async (tokens) => {
       // Best-effort user profile from cli-chat-proxy (non-fatal)
       try {
-        const res = await fetch("https://cli-chat-proxy.grok.com/v1/user", {
+        const res = await fetch(`${GROK_CLI_BASE_URL}/user`, {
           headers: {
             Authorization: `Bearer ${tokens.access_token}`,
             Accept: "application/json",
