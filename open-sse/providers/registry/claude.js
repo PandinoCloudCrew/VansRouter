@@ -76,6 +76,9 @@ export default {
     { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
     { id: "claude-fable-5-1", name: "Claude Fable 5.1" },
     { id: "claude-fable-5", name: "Claude Fable 5" },
+    { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
+    { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
+    { id: "claude-haiku-4-5-20251001", name: "Claude 4.5 Haiku" },
   ],
   oauth: {
     clientId: "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
