@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyKiroThinkingOverride, resolveKiroModelIntent } from "../../open-sse/config/kiroConstants.js";
 import { getThinkingLevels } from "../../open-sse/providers/thinkingLevels.js";
+import { applyThinking } from "../../open-sse/translator/concerns/thinkingUnified.js";
 import { buildKiroAdditionalModelRequestFieldsForModel } from "../../open-sse/config/kiroConstants.js";
 
 describe("Kiro model(level) suffix", () => {

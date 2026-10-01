@@ -253,6 +253,141 @@ export function normalizeClaudePassthrough(body, model = "") {
     }
   }
 
+  // A dropped server_tool_use leaves its result behind; Anthropic rejects a
+  // tool_result that references an id no block declares, so both halves must go.
+  if (droppedServerToolUseIds.size > 0 && Array.isArray(body.messages)) {
+    for (const msg of body.messages) {
+      if (!Array.isArray(msg.content)) continue;
+      const kept = msg.content.filter(block => !(
+        (block?.type === CLAUDE_BLOCK.TOOL_RESULT || block?.type === CLAUDE_BLOCK.WEB_SEARCH_TOOL_RESULT)
+        && droppedServerToolUseIds.has(String(block.tool_use_id ?? ""))
+      ));
+      if (kept.length !== msg.content.length) {
+        msg.content = kept;
+      }
+    }
+  }
+
+  // 6. Drop empty text blocks and any message left with no content at all.
+  // Anthropic rejects `messages.N.content` blocks with empty text (400
+  // "text content blocks must be non-empty"); a message whose blocks were all
+  // stripped above must be dropped, not padded with an empty placeholder.
+  if (Array.isArray(body.messages)) {
+    body.messages = body.messages.filter(msg => {
+      if (typeof msg.content === "string") return msg.content.trim().length > 0;
+      if (!Array.isArray(msg.content)) return true;
+      msg.content = msg.content.filter(block =>
+        !(block?.type === CLAUDE_BLOCK.TEXT && !String(block.text ?? "").trim()));
+      return msg.content.length > 0;
+    });
+  }
+
+  return body;
+}
+
+// Put a 5m breakpoint on the last cache-eligible block of a message.
+// thinking/redacted_thinking blocks do not accept cache_control.
+function markLastCacheableBlock(msg) {
+  if (!Array.isArray(msg?.content)) return false;
+  for (let i = msg.content.length - 1; i >= 0; i--) {
+    const block = msg.content[i];
+    if (typeof block !== "object" || block === null) continue;
+    if (block.type === CLAUDE_BLOCK.THINKING || block.type === CLAUDE_BLOCK.REDACTED_THINKING) continue;
+    block.cache_control = { ...CACHE_CONTROL_5M };
+    return true;
+  }
+  return false;
+}
+
+// In an agent's tool loop, a request ends with the results of the last
+// assistant turn's tool calls -- after that turn's breakpoint. They go at the
+// full input price, and the next request (which appends to them) writes them
+// into the cache. When the 4-marker budget has room, a 5m breakpoint on that
+// final user turn caches them now, and the next request reads them.
+function markFinalToolResults(body) {
+  const messages = body?.messages;
+  const last = Array.isArray(messages) ? messages[messages.length - 1] : null;
+  if (last?.role !== ROLE.USER || !Array.isArray(last.content)) return false;
+  if (!last.content.some((block) => block?.type === CLAUDE_BLOCK.TOOL_RESULT)) return false;
+  if (last.content.some((block) => block?.cache_control)) return false;
+  if (countCacheControlBlocks(body) >= 4) return false;
+  return markLastCacheableBlock(last);
+}
+
+// Re-anchor cache breakpoints on a Claude passthrough body (same policy as
+// prepareClaudeRequest): last tool + last system block at 1h, last assistant at 5m.
+// The client's own markers point at pre-normalization offsets, so they are dropped.
+// Must run LAST, after every step that can reshape system/tools/messages
+// (normalize, tool dedupe, token savers) — otherwise the anchor drifts off the tail.
+export function anchorClaudeCache(body) {
+  if (!body || typeof body !== "object") return body;
+  if (Array.isArray(body.messages)) {
+    for (const msg of body.messages) normalizeMessageContent(msg);
+  }
+  // Invalid markers first, whatever the budget: Anthropic rejects a tool that
+  // carries BOTH defer_loading and cache_control (#3567). The re-anchor path
+  // below strips them anyway; the over-budget early return used to forward
+  // them untouched.
+  if (Array.isArray(body.tools)) {
+    for (const t of body.tools) {
+      if (t?.defer_loading === true) delete t.cache_control;
+    }
+  }
+
+  // Head anchors first, before any budget guard: the 1h TTL on system/tools is
+  // the point of re-anchoring, and skipping it because the client spent its
+  // budget would silently downgrade a cache hit to the 5m default.
+  if (Array.isArray(body.system)) {
+    const last = body.system.length - 1;
+    body.system.forEach((block, i) => {
+      if (typeof block !== "object" || block === null) return;
+      if (i === last) block.cache_control = { ...CACHE_CONTROL_1H };
+      else delete block.cache_control;
+    });
+  }
+
+  if (Array.isArray(body.tools)) {
+    const last = lastCacheableToolIndex(body.tools);
+    body.tools.forEach((tool, i) => {
+      if (i === last) tool.cache_control = { ...CACHE_CONTROL_1H };
+      else delete tool.cache_control;
+    });
+  }
+
+  // Budget guard AFTER the head anchors: with the last system block and last
+  // tool pinned, at most 2 slots remain. At >= 4 markers the client has spent
+  // the rest of the budget and every remaining marker is itself a valid
+  // breakpoint — re-anchoring the tail could only exceed 4, so trim instead.
+  if (countCacheControlBlocks(body) >= 4) {
+    capCacheControlBlocks(body);
+    return body;
+  }
+
+  if (Array.isArray(body.messages)) {
+    let anchored = null;
+    for (let i = body.messages.length - 1; i >= 0; i--) {
+      const msg = body.messages[i];
+      if (!Array.isArray(msg.content)) continue;
+      for (const block of msg.content) delete block.cache_control;
+
+      // Prefer the last assistant turn: it ends a completed exchange, so the
+      // prefix up to it stays byte-stable across the following requests.
+      if (anchored || msg.role !== ROLE.ASSISTANT) continue;
+      anchored = markLastCacheableBlock(msg);
+    }
+
+    // First turn of a conversation has no assistant yet — anchor the final
+    // message instead, so the opening prompt is cached rather than paid twice.
+    if (!anchored) {
+      for (let i = body.messages.length - 1; i >= 0 && !anchored; i--) {
+        anchored = markLastCacheableBlock(body.messages[i]);
+      }
+    }
+
+    // ...and a tool loop's final tool results, so the next step reads them.
+    markFinalToolResults(body);
+  }
+
   return body;
 }
 
@@ -454,6 +589,17 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
       delete body.tool_choice;
     }
   }
+
+  // Anthropic itself reads images inside tool_result; other Anthropic-compatible
+  // endpoints (OpenCode Go, Kimi, DeepSeek, GLM, MiniMax) accept image blocks
+  // only as user content and silently drop them inside a tool result. Move a
+  // tool's screenshot out of the result and into the same user turn.
+  if (provider !== "claude" && !provider?.startsWith("anthropic-compatible")) {
+    body = hoistToolResultImages(body);
+  }
+
+  // A tool loop's final tool results: cached now, so the next step reads them.
+  markFinalToolResults(body);
 
   // Apply cloaking for OAuth tokens (billing header + fake user ID)
   // session_id in user_id must match X-Claude-Code-Session-Id for fingerprint consistency
