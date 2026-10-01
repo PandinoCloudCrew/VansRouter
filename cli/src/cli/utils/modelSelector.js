@@ -30,35 +30,50 @@ const PROVIDER_ALIAS_NAMES = {
   "opencode-go": "OpenCode Go"
 };
 
-const PROVIDER_ID_TO_ALIAS = {
-  claude: "cc",
-  codex: "cx",
-  "gemini-cli": "gc",
-  github: "gh",
-  antigravity: "ag",
-  iflow: "if",
-  qwen: "qw",
-  kiro: "kr",
-  cursor: "cu",
-  cline: "cline",
-  clinepass: "clinepass",
-  qoder: "qd",
-  "qoder-cn": "qd",
-  gitlab: "gitlab",
-  "codebuddy-cn": "cb",
-  "codebuddy-intl": "cbai",
-  kimchi: "kimchi",
-  "grok-cli": "grok-cli",
-  trae: "trae",
-  windsurf: "windsurf",
-  zed: "zed",
-  opencode: "oc",
-  "opencode-go": "ocg",
-  "opencode-zen": "ocz",
-};
+// Provider aliases are taken from the server: /api/providers returns each
+// connection's `alias`, an alias→id `aliasMap`, and every provider's `noAuth`
+// flag (src/app/api/providers/route.js:73,82-99). This module used to keep its
+// own id→alias table, which had drifted from the registry (cline→cl, zed→zd,
+// qoder-cn→qdcn, codebuddy-cn→cbcn, grok-cli→gcli) and silently dropped those
+// providers' models from the picker.
 
-// Providers usable without stored credentials
-const NO_AUTH_PROVIDERS = new Set(["opencode", "oc"]);
+/**
+ * Aliases that /v1/models may stamp into `owned_by` and that are usable right now:
+ * every registered no-auth provider, plus every active connection's id, alias and
+ * custom-node prefix. Everything comes from the /api/providers payload, so it
+ * cannot drift from the registry the way the removed hand-written table did.
+ * @param {{connections?: Array, providers?: Array, aliasMap?: Object}} providerData
+ * @returns {Set<string>}
+ */
+function buildActiveAliases(providerData = {}) {
+  const activeAliases = new Set();
+
+  for (const def of providerData.providers || []) {
+    if (!def || !def.noAuth) continue;
+    activeAliases.add(def.id);
+    if (def.alias) activeAliases.add(def.alias);
+    for (const alias of def.aliases || []) activeAliases.add(alias);
+  }
+
+  // aliasMap is alias→id; invert it so a connected id also admits its alias.
+  const aliasOfId = {};
+  for (const [alias, id] of Object.entries(providerData.aliasMap || {})) {
+    if (!aliasOfId[id]) aliasOfId[id] = alias;
+  }
+
+  for (const conn of providerData.connections || []) {
+    if (!conn || conn.isActive === false) continue;
+    const p = conn.provider;
+    if (!p) continue;
+    activeAliases.add(p);
+    if (conn.alias) activeAliases.add(conn.alias);
+    if (aliasOfId[p]) activeAliases.add(aliasOfId[p]);
+    const prefix = conn.providerSpecificData?.prefix;
+    if (prefix) activeAliases.add(prefix);
+  }
+
+  return activeAliases;
+}
 
 /**
  * Get all available models grouped by provider + combos (filtered by active connections)
@@ -72,17 +87,8 @@ async function getAvailableModelsGrouped() {
 
   if (!modelsResult.success) return { combos: [], groups: {} };
 
-  const connections = providersResult.success ? (providersResult.data?.connections || []) : [];
-  const activeAliases = new Set(NO_AUTH_PROVIDERS);
-
-  connections.forEach(conn => {
-    if (conn.isActive === false) return;
-    const p = conn.provider;
-    if (!p) return;
-    activeAliases.add(p);
-    const alias = conn.providerSpecificData?.prefix || PROVIDER_ID_TO_ALIAS[p] || p;
-    activeAliases.add(alias);
-  });
+  const providerData = providersResult.success ? (providersResult.data || {}) : {};
+  const activeAliases = buildActiveAliases(providerData);
 
   const models = modelsResult.data?.data || [];
   const combos = [];
@@ -332,6 +338,7 @@ async function selectModelFromList(title, currentValue = "", options = {}) {
 module.exports = {
   selectModelFromList,
   getAvailableModelsGrouped,
+  buildActiveAliases,
   PROVIDER_ALIAS_ORDER,
   PROVIDER_ALIAS_NAMES
 };
