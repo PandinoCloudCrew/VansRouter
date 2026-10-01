@@ -70,6 +70,26 @@ describe("provider insert is O(1) in pool size (#4311)", () => {
     const after = await getProviderConnections({ provider: P });
     expect(after[0].name).toBe("seed-3");
   });
+  it("keeps priorities distinct when the caller sends the dashboard default 1", async () => {
+    // POST /api/providers sends `priority || 1` (route.js:203) and the add-key
+    // modal sends `priority: 1`, so this is the normal insert path. Dropping the
+    // reindex pass here left every row on priority 1.
+    const P = `openai-compatible-prio1-${Date.now()}`;
+    for (let i = 0; i < 3; i++) {
+      await createProviderConnection({
+        provider: P,
+        authType: "apikey",
+        name: `p-${i}`,
+        apiKey: `k${i}`,
+        priority: 1,
+      });
+    }
+    const list = await getProviderConnections({ provider: P });
+    expect(list.map((c) => c.priority)).toEqual([1, 2, 3]);
+    // Order among equal timestamps is not part of the contract; distinct
+    // priorities are.
+    expect(new Set(list.map((c) => c.name)).size).toBe(3);
+  });
 });
 
 describe("name collision upserts by name (deliberate in this fork, see bulkAdd.js)", () => {

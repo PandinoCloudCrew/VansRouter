@@ -245,11 +245,13 @@ export async function createProviderConnection(data) {
     if (data.email !== undefined) conn.email = data.email;
 
     upsert(db, conn);
-    // No reorderInTx here. `conn.priority` is already MAX(priority)+1, so the
-    // row sorts last and the resulting order is what reorderInTx would have
-    // produced anyway. The rewrite cost ~2N statements per insert — O(pool) —
-    // which made a 5k-key import O(n*m): ~25M statements at a 5k pool, and it
-    // serialized every parallel writer on the same transaction. #4311
+    // reorderInTx is O(pool), so it is skipped on the MAX(priority)+1 path: the
+    // row is already last, which is the order reindexing would have produced.
+    // Callers that pass an explicit priority can collide with existing rows —
+    // the dashboard sends priority 1 (src/app/api/providers/route.js:203,
+    // AddApiKeyModal.js:28), which left the whole pool on priority 1 and flipped
+    // the display order — so that path still reindexes. #4311
+    if (data.priority) reorderInTx(db, data.provider);
     result = conn;
   });
 
