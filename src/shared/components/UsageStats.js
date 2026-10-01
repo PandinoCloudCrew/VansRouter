@@ -283,6 +283,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
   const [tableView, setTableView] = useState("model");
   const [viewMode, setViewMode] = useState("costs");
   const [providers, setProviders] = useState([]);
+  const [chartsReady, setChartsReady] = useState(false);
   const [periodLocal, setPeriodLocal] = useState("today");
   const isInitialLoad = useRef(true);
   const hasLoadedStats = useRef(false);
@@ -318,6 +319,16 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       })
       .catch(() => {});
     return () => controller.abort();
+  }, []);
+  // Defer recharts (~482KB) until the first idle moment so the page becomes
+  // interactive before the charts hydrate.
+  useEffect(() => {
+    if ("requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(() => setChartsReady(true), { timeout: 2000 });
+      return () => window.cancelIdleCallback(id);
+    }
+    const timer = setTimeout(() => setChartsReady(true), 200);
+    return () => clearTimeout(timer);
   }, []);
   // Fetch filtered stats via REST when period changes
   useEffect(() => {
@@ -555,7 +566,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       {loading ? overviewSkeleton : <OverviewCards stats={stats} />}
 
       {/* Provider topology + Recent Requests */}
-      {loading ? topologySkeleton : (
+      {loading || !chartsReady ? topologySkeleton : (
         <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
           <ProviderTopology
             providers={providers}
@@ -568,10 +579,10 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       )}
 
       {/* Token / Cost chart - sync period */}
-      {loading ? chartSkeleton : <UsageChart period={period} />}
+      {loading || !chartsReady ? chartSkeleton : <UsageChart period={period} />}
 
       {/* Provider and model breakdown charts */}
-      {!loading && (stats.byProvider || stats.byModel) && (
+      {!loading && chartsReady && (stats.byProvider || stats.byModel) && (
         <div className="grid min-w-0 grid-cols-1 gap-2 lg:grid-cols-2">
           <ProviderBarChart byProvider={stats.byProvider} />
           <TopModelsChart byModel={stats.byModel} />
