@@ -220,7 +220,7 @@ export async function updateProviderCredentials(connectionId, newCredentials) {
  * @param {object} credentials
  * @returns {Promise<object>} updated credentials object
  */
-export async function checkAndRefreshToken(provider, credentials) {
+export async function checkAndRefreshToken(provider, credentials, options = null) {
   let creds = { ...credentials };
   if (!creds.connectionId && creds.id) {
     creds.connectionId = creds.id;
