@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import Card from "@/shared/components/Card";
 import Badge from "@/shared/components/Badge";
 
@@ -19,52 +22,155 @@ const REFRESH_BADGE = {
   rolling: { variant: "default", className: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400" },
 };
 
+/**
+ * Free-tier catalogue, grouped per provider.
+ *
+ * The flat 131-row table made the list unusable: rows repeated the provider name
+ * on every line and nothing distinguished a provider you have an account for from
+ * one you cannot use yet. Providers are grouped now, connected ones sort first,
+ * and the rest stay behind a toggle (collapsed by default) with a search box.
+ */
 export default function FreeTierList({ tiers = [] }) {
+  const [activeProviders, setActiveProviders] = useState(null); // null = unknown yet
+  const [query, setQuery] = useState("");
+  const [showUnconnected, setShowUnconnected] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/providers", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled || !data) return;
+        const ids = new Set();
+        for (const conn of data.connections || []) {
+          if (conn.isActive === false) continue;
+          if (conn.provider) ids.add(conn.provider);
+          if (conn.alias) ids.add(conn.alias);
+        }
+        setActiveProviders(ids);
+      })
+      .catch(() => {
+        if (!cancelled) setActiveProviders(new Set());
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const groups = useMemo(() => {
+    const byProvider = new Map();
+    for (const tier of tiers) {
+      const id = tier.providerId;
+      if (!byProvider.has(id)) {
+        byProvider.set(id, {
+          id,
+          name: tier.providerName || id,
+          alias: tier.providerAlias || null,
+          refresh: tier.freeRefresh || null,
+          models: [],
+        });
+      }
+      const group = byProvider.get(id);
+      if (!group.refresh && tier.freeRefresh) group.refresh = tier.freeRefresh;
+      if (tier.modelId) {
+        group.models.push({ id: tier.modelId, name: tier.modelName || tier.modelId });
+      }
+    }
+
+    const needle = query.trim().toLowerCase();
+    const all = [...byProvider.values()].map((group) => ({
+      ...group,
+      connected: Boolean(
+        activeProviders &&
+          (activeProviders.has(group.id) || (group.alias && activeProviders.has(group.alias))),
+      ),
+    }));
+
+    const matches = needle
+      ? all.filter(
+          (g) =>
+            g.name.toLowerCase().includes(needle) ||
+            (g.alias || "").toLowerCase().includes(needle) ||
+            g.models.some(
+              (m) =>
+                m.name.toLowerCase().includes(needle) || m.id.toLowerCase().includes(needle),
+            ),
+        )
+      : all;
+
+    return matches.sort((a, b) => {
+      if (a.connected !== b.connected) return a.connected ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [tiers, activeProviders, query]);
+
+  const connectedCount = groups.filter((g) => g.connected).length;
+  const hiddenCount = activeProviders ? groups.length - connectedCount : 0;
+
+  const visible = showUnconnected || query.trim() ? groups : groups.filter((g) => g.connected);
+
   return (
     <Card
       padding="lg"
       title="Available free tiers"
-      subtitle="Catalogue of providers and models with a free allowance, derived from the provider registry."
+      subtitle="Provider free allowances from the registry. Connected providers first; the rest are behind the toggle."
     >
       {tiers.length === 0 ? (
         <p className="py-6 text-center text-sm text-text-muted">No free tiers found.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-black/10 text-[11px] uppercase tracking-wide text-text-muted dark:border-white/10">
-                <th scope="col" className="py-2 pr-3 font-medium">Provider</th>
-                <th scope="col" className="py-2 pr-3 font-medium">Model</th>
-                <th scope="col" className="py-2 pr-3 font-medium">Refresh</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tiers.map((tier) => {
-                const badge = REFRESH_BADGE[tier.freeRefresh];
-                const showAlias = tier.providerAlias && tier.providerAlias !== tier.providerName;
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter by provider or model…"
+              aria-label="Filter free tiers by provider or model"
+              className="min-w-[12rem] flex-1 rounded border border-border bg-surface px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
+            />
+            <span className="text-[11px] text-text-muted">
+              {connectedCount} connected
+              {activeProviders === null ? " (checking…)" : ` · ${hiddenCount} without an account`}
+            </span>
+            {hiddenCount > 0 && !query.trim() && (
+              <button
+                type="button"
+                onClick={() => setShowUnconnected((v) => !v)}
+                aria-pressed={showUnconnected}
+                className="rounded border border-border px-2.5 py-1.5 text-xs text-text-muted transition-colors hover:border-primary hover:text-primary"
+              >
+                {showUnconnected ? "Hide" : "Show"} providers without an account
+              </button>
+            )}
+          </div>
+
+          {visible.length === 0 ? (
+            <p className="py-6 text-center text-sm text-text-muted">
+              {activeProviders === null
+                ? "Checking your connections…"
+                : "No free tier matches. Add a connection for a provider below, or clear the filter."}
+            </p>
+          ) : (
+            <div className="flex flex-col divide-y divide-black/5 dark:divide-white/5">
+              {visible.map((group) => {
+                const badge = REFRESH_BADGE[group.refresh] || { variant: "default" };
                 return (
-                  <tr
-                    key={`${tier.providerId}-${tier.modelId ?? "__provider__"}`}
-                    className="border-b border-black/5 hover:bg-black/[0.02] dark:border-white/5 dark:hover:bg-white/[0.02]"
-                  >
-                    <td className="py-2 pr-3">
-                      <div className="font-medium text-text-primary">{tier.providerName}</div>
-                      {showAlias && (
-                        <div className="text-[10px] text-text-muted">{tier.providerAlias}</div>
+                  <div key={group.id} className="flex flex-col gap-1.5 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium text-text-primary">{group.name}</span>
+                      {group.alias && group.alias !== group.name && (
+                        <span className="font-mono text-[10px] text-text-muted">{group.alias}</span>
                       )}
-                    </td>
-                    <td className="py-2 pr-3 text-text-primary">
-                      {tier.modelName ?? (
-                        <span className="italic text-text-muted">free tier available</span>
-                      )}
-                      {tier.modelId && tier.modelId !== tier.modelName && (
-                        <div className="truncate font-mono text-[10px] text-text-muted">{tier.modelId}</div>
-                      )}
-                    </td>
-                    <td className="py-2 pr-3">
-                      {tier.freeRefresh ? (
+                      {group.connected ? (
+                        <Badge size="sm" variant="success">
+                          Connected
+                        </Badge>
+                      ) : activeProviders ? (
+                        <span className="text-[11px] italic text-text-muted">no account yet</span>
+                      ) : null}
+                      {group.refresh ? (
                         <Badge size="sm" variant={badge.variant} className={badge.className}>
-                          {REFRESH_LABELS[tier.freeRefresh] || tier.freeRefresh}
+                          {REFRESH_LABELS[group.refresh] || group.refresh}
                         </Badge>
                       ) : (
                         <span
@@ -75,12 +181,31 @@ export default function FreeTierList({ tiers = [] }) {
                           —
                         </span>
                       )}
-                    </td>
-                  </tr>
+                      <span className="ml-auto text-[11px] text-text-muted">
+                        {group.models.length === 0
+                          ? "free tier available"
+                          : `${group.models.length} free model${group.models.length > 1 ? "s" : ""}`}
+                      </span>
+                    </div>
+
+                    {group.models.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {group.models.map((model) => (
+                          <span
+                            key={model.id}
+                            title={model.id}
+                            className="rounded bg-black/[0.04] px-1.5 py-0.5 font-mono text-[11px] text-text-muted dark:bg-white/[0.06]"
+                          >
+                            {model.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
+            </div>
+          )}
         </div>
       )}
     </Card>
