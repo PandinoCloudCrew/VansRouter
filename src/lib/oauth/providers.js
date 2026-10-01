@@ -67,6 +67,7 @@ import kiro from "./providers/kiro.js";
 import antigravity from "./providers/antigravity.js";
 import kimchi from "./providers/kimchi.js";
 import freebuff from "./providers/freebuff.js";
+import glm from "./providers/glm.js";
 
 export { extractCodexAccountInfo, fetchKiroProfileArn };
 
@@ -1489,6 +1490,7 @@ const PROVIDERS = {
   },
 
   kimchi,
+  glm,
 };
 
 /**

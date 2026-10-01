@@ -34,9 +34,11 @@ describe("glm registry entry (dual-auth)", () => {
   it("keeps the direct api.z.ai anthropic transport (no separate gateway)", () => {
     expect(TRANSPORTS.glm.baseUrl).toBe(ANTHROPIC_URL);
     expect(TRANSPORTS.glm.auth.header).toBe("x-api-key");
-    // no zcode gateway/hook leftovers
-    expect(TRANSPORTS.zcode).toBeUndefined();
-    expect(PROVIDER_OAUTH.zcode).toBeUndefined();
+    // This fork keeps the ZCode provider (registry, executor, ZAI OAuth); only
+    // upstream's glm-through-zcode gateway hook is gone. Assert that instead of
+    // upstream's "zcode must not exist".
+    expect(TRANSPORTS.zcode).toBeDefined();
+    expect(PROVIDER_OAUTH.zcode).toBeDefined();
   });
 
   it("declares the ZCode CLI polling OAuth endpoints (no refresh grant)", () => {
