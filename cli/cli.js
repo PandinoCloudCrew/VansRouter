@@ -80,8 +80,31 @@ if (args[0] === "xai" && args[1] === "video") {
   return;
 }
 
+<<<<<<< HEAD
 // Runtime provisioning is deliberately deferred until after argument parsing.
 // `--help` and `--version` must remain side-effect free and must not invoke npm.
+=======
+// `9router connect <url>` configures local CLI tools against a remote server —
+// no local server, no runtime deps. Usable via `npx 9router connect …`.
+if (args[0] === "connect") {
+  const { run } = require("./src/cli/commands/connect");
+  run(args.slice(1))
+    .then((code) => process.exit(code))
+    .catch((err) => {
+      console.error(`❌ ${err?.message || err}`);
+      process.exit(1);
+    });
+  return;
+}
+
+// Self-heal SQLite runtime deps (sql.js + better-sqlite3) into ~/.9router/runtime
+// so the server can resolve them via NODE_PATH. Best-effort — sql.js is required,
+// better-sqlite3 is optional. Logs to stderr only on failure.
+try { ensureSqliteRuntime({ silent: true }); } catch {}
+
+// Self-heal tray runtime (systray for macOS/Linux only). Windows skipped.
+try { ensureTrayRuntime({ silent: true }); } catch {}
+>>>>>>> 31704db7 (feat(cli): add connect command for remote 9router servers)
 
 // Configuration constants
 const APP_NAME = pkg.name; // Use from package.json
@@ -149,6 +172,8 @@ Options:
   -v, --version       Show version
 
 Commands:
+  connect <server-url> Configure Claude Code for a remote 9router server
+                      (npx 9router connect http://host:20128 — no install needed)
   xai video --prompt "..." --output video.mp4
                       Generate a Grok Imagine video via the running gateway
                       (see: ${APP_NAME} xai video --help)
