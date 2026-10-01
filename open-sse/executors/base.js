@@ -43,7 +43,10 @@ export class BaseExecutor {
     return baseUrls[urlIndex] || baseUrls[0] || this.config.baseUrl;
   }
 
-  buildHeaders(credentials, stream = true) {
+  // Contract for every executor: slot 3 is the model id, slot 4 is the request
+  // body as translated before the call (base.execute passes both). Subclasses
+  // that ignore the extra slots declare fewer parameters.
+  buildHeaders(credentials, stream = true, model = null, body = null) {
     const headers = {
       "Content-Type": "application/json",
       ...this.config.headers
