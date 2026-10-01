@@ -263,7 +263,9 @@ function applyFormat(fmt, body, cfg, caps, supportedLevels, display) {
       // Sonnet 5. Send both fields — the documented adaptive-thinking shape.
       body.thinking = { type: "adaptive", ...(display ? { display } : {}) };
       const level = toLevel(eff);
-      body.output_config = { effort: level === "xhigh" ? "high" : level };
+      // xhigh is model-gated (Opus/Sonnet 4.6 reject it) — clamp when not advertised.
+      body.output_config = { effort: level === "auto" ? "high"
+        : level === "xhigh" && !supportedLevels?.includes("xhigh") ? "high" : level };
       break;
     }
     case "claude-budget": {
