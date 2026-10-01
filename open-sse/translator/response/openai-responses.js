@@ -26,17 +26,22 @@ import { ROLE, OPENAI_BLOCK, RESPONSES_ITEM, OPENAI_FINISH, MODEL_FALLBACK } fro
 function toResponsesUsage(usage) {
   if (!usage || typeof usage !== "object") return null;
 
-  const inputTokens = [usage.input_tokens, usage.prompt_tokens].find(Number.isFinite) ?? 0;
-  const outputTokens = [usage.output_tokens, usage.completion_tokens].find(Number.isFinite) ?? 0;
+  const inputTokens = [usage.input_tokens, usage.prompt_tokens].find(Number.isInteger);
+  const outputTokens = [usage.output_tokens, usage.completion_tokens].find(Number.isInteger);
+  // Some upstreams attach zeroed placeholders to every chunk. Wait for real counts
+  // so response.completed cannot freeze the placeholder before the usage trailer.
+  if (inputTokens === undefined || outputTokens === undefined || inputTokens + outputTokens <= 0) {
+    return null;
+  }
   const responseUsage = {
     input_tokens: inputTokens,
     output_tokens: outputTokens,
-    total_tokens: Number.isFinite(usage.total_tokens) ? usage.total_tokens : inputTokens + outputTokens
+    total_tokens: inputTokens + outputTokens
   };
-  const cachedTokens = [usage.input_tokens_details?.cached_tokens, usage.prompt_tokens_details?.cached_tokens].find(Number.isFinite);
-  const reasoningTokens = [usage.output_tokens_details?.reasoning_tokens, usage.completion_tokens_details?.reasoning_tokens].find(Number.isFinite);
-  if (Number.isFinite(cachedTokens)) responseUsage.input_tokens_details = { cached_tokens: cachedTokens };
-  if (Number.isFinite(reasoningTokens)) responseUsage.output_tokens_details = { reasoning_tokens: reasoningTokens };
+  const cachedTokens = [usage.input_tokens_details?.cached_tokens, usage.prompt_tokens_details?.cached_tokens].find(Number.isInteger);
+  const reasoningTokens = [usage.output_tokens_details?.reasoning_tokens, usage.completion_tokens_details?.reasoning_tokens].find(Number.isInteger);
+  if (Number.isInteger(cachedTokens)) responseUsage.input_tokens_details = { cached_tokens: cachedTokens };
+  if (Number.isInteger(reasoningTokens)) responseUsage.output_tokens_details = { reasoning_tokens: reasoningTokens };
 
   return responseUsage;
 }
@@ -51,8 +56,14 @@ export function openaiToOpenAIResponsesResponse(chunk, state) {
   if (chunk.usage) {
     state.responsesUsage = toResponsesUsage(chunk.usage);
   }
+  // Capture usage before the choices guard: OpenAI may send it in a trailer
+  // whose choices array is empty.
+  const responseUsage = toResponsesUsage(chunk.usage);
+  if (responseUsage) state.responsesUsage = responseUsage;
 
-  if (!chunk.choices?.length) return [];
+  if (!chunk.choices?.length) {
+    return state.completionPending && state.responsesUsage ? flushEvents(state) : [];
+  }
 
   const events = [];
   const nextSeq = () => ++state.seq;
@@ -158,6 +169,7 @@ export function openaiToOpenAIResponsesResponse(chunk, state) {
     // and deferring would swallow the terminal event.
     const flushReachesUs = state.targetFormat === FORMATS.OPENAI;
     if (state.responsesUsage || !flushReachesUs) sendCompleted(state, emit);
+    else state.completionPending = true;
   }
 
   return events;
