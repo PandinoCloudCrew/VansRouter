@@ -173,6 +173,27 @@ export async function POST(request) {
     const sel = Array.isArray(selections) && selections.some((s) => s?.role && s?.model)
       ? selections.filter((s) => s?.role && s?.model)
       : model ? [{ role: "default", model }] : [];
+
+    // role is interpolated into a RegExp (auxRoleRe) and into a YAML key; model
+    // and baseUrl end up inside double-quoted YAML scalars. Reject anything that
+    // could break out of either before touching the config file.
+    const BAD_ROLE_CHAR = /[^A-Za-z0-9_-]/;
+    const BAD_YAML_VALUE = /["\r\n]/;
+    for (const s of sel) {
+      if (typeof s.role !== "string" || !s.role || s.role.length > 32 || BAD_ROLE_CHAR.test(s.role)) {
+        return NextResponse.json(
+          { error: "Role must be 1-32 characters of letters, digits, dash or underscore" },
+          { status: 400 },
+        );
+      }
+      if (typeof s.model !== "string" || !s.model || BAD_YAML_VALUE.test(s.model)) {
+        return NextResponse.json({ error: `Invalid model for role "${s.role}"` }, { status: 400 });
+      }
+    }
+    if (typeof baseUrl !== "string" || !baseUrl || BAD_YAML_VALUE.test(baseUrl)) {
+      return NextResponse.json({ error: "Invalid baseUrl" }, { status: 400 });
+    }
+
     const defaultSel = sel.find((s) => s.role === "default");
     if (!baseUrl || !defaultSel) {
       return NextResponse.json({ error: "baseUrl and model are required" }, { status: 400 });
