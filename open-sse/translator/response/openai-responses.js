@@ -230,7 +230,7 @@ function closeReasoning(state, emit) {
       item
     });
 
-    recordCompletedOutputItem(state, state.reasoningIndex, item);
+    recordCompletedOutputItem(state, item);
   }
 }
 
@@ -307,7 +307,7 @@ function closeMessage(state, emit, idx) {
       item
     });
 
-    recordCompletedOutputItem(state, parseInt(idx), item);
+    recordCompletedOutputItem(state, item);
   }
 }
 
@@ -376,7 +376,7 @@ function closeToolCall(state, emit, idx) {
       item
     });
 
-    recordCompletedOutputItem(state, parseInt(idx), item);
+    recordCompletedOutputItem(state, item);
 
     state.funcItemDone[idx] = true;
     state.funcArgsDone[idx] = true;
@@ -389,22 +389,19 @@ function closeToolCall(state, emit, idx) {
 // SDK "final response" helpers) otherwise treat the turn as empty even though the
 // text was streamed - see issue #4307.
 //
-// Keyed by output_index so a repeated close overwrites rather than duplicating the
-// item, and ordered by output_index so response.output matches the order the items
-// were emitted in. Lazily created because stream.js can hand us a state it built
-// itself rather than one from initState().
-function recordCompletedOutputItem(state, outputIndex, item) {
-  state.completedOutputItems ??= new Map();
-  const index = Number.isInteger(outputIndex) ? outputIndex : Number.parseInt(outputIndex, 10) || 0;
-  state.completedOutputItems.set(index, item);
+// Appended in emission order and deduped by item id: several item kinds share one
+// output_index (reasoning and message both live at choice.index 0), so keying this
+// by output_index dropped whichever closed second.
+function recordCompletedOutputItem(state, item) {
+  state.completedOutputItems ??= [];
+  if (!Array.isArray(state.completedOutputItems)) return;
+  if (!item?.id || state.completedOutputItems.some((entry) => entry?.id === item.id)) return;
+  state.completedOutputItems.push(item);
 }
 
 function collectCompletedOutputItems(state) {
   const recorded = state.completedOutputItems;
-  if (!(recorded instanceof Map) || recorded.size === 0) return [];
-  return [...recorded.entries()]
-    .sort((left, right) => left[0] - right[0])
-    .map(([, item]) => item);
+  return Array.isArray(recorded) ? recorded.slice() : [];
 }
 
 function sendCompleted(state, emit) {

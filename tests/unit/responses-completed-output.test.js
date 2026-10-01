@@ -146,6 +146,37 @@ describe("response.completed output (issue #4307)", () => {
     const second = openaiToOpenAIResponsesResponse(null, state);
 
     expect(second).toEqual([]);
-    expect(state.completedOutputItems.size).toBe(1);
+    expect(state.completedOutputItems).toHaveLength(1);
+  });
+
+  // Reasoning, message and tool_call all sit at choice.index 0, so keying the
+  // completed list by output_index dropped whichever closed second.
+  it("keeps reasoning, message and function_call together at the same index", () => {
+    const { events } = runChunks([
+      reasoningChunk("thinking"),
+      textChunk("answer"),
+      {
+        id: "chatcmpl-1",
+        choices: [
+          {
+            index: 0,
+            delta: {
+              tool_calls: [
+                { index: 0, id: "call_1", function: { name: "get_weather", arguments: '{"city":"Paris"}' } },
+              ],
+            },
+          },
+        ],
+      },
+      finishChunk({ prompt_tokens: 5, completion_tokens: 3, total_tokens: 8 }),
+    ]);
+    const response = completedResponse(events);
+
+    expect(response.output.map((item) => item.type)).toEqual([
+      "reasoning",
+      "message",
+      "function_call",
+    ]);
+    expect(response.output).toEqual(doneItems(events));
   });
 });
