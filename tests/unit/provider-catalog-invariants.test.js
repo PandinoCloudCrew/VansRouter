@@ -64,6 +64,10 @@ const PROTECTED = {
     alias: "kr",
     uiAlias: "kr",
     modelIds: [
+      "claude-opus-5.5",
+      "claude-opus-5.5-thinking",
+      "claude-opus-5.5-agentic",
+      "claude-opus-5.5-thinking-agentic",
       "claude-opus-5",
       "claude-opus-5-thinking",
       "claude-opus-5-agentic",
