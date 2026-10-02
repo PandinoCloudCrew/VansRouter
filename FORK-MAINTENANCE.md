@@ -9,6 +9,64 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Upstream synchronization and staging image, 2026-10-02
+
+Merge `0ea505680ddfa9968bb7e59ed1f048a3642fd15f` includes upstream v0.91.61
+(`f3da996e`): 132 commits beyond the previous fork branch. Both package versions
+and npm lockfile roots are 0.91.61. The chat-core conflict retains independent
+writing controls alongside upstream's `providerOverrides` parameter. Existing
+writing prompts, Monaco sanitizer patch, Docker security pins, pnpm dependencies
+and persistent volume configuration are unchanged.
+
+Upstream additions include Muse, v1m, Hive and aggregator providers, GLM OAuth,
+GPT-6.1 and Claude/Kiro model updates, CLI connect/profile tools, provider header
+overrides, Gemini Live STT, Responses completion handling and dashboard usage
+performance changes. See the upstream v0.91.61 changelog for the complete scope.
+
+Published staging image:
+
+`registry.pcc.fyi/pcc-staging/vansrouter:0.91.61-writing.1@sha256:7a3506a6ff74430222af19f8ba7d9218f9f2ce75ebca2b24e460cfc436c9bcbb`
+
+The index contains Linux amd64 and arm64 images, with registry-readable
+provenance and SBOM attestations. Artifact Keeper metadata and platform-specific
+Docker pulls match the digest. Labels identify the merge commit and PCC fork.
+Both platforms passed smoke checks again using the published digest.
+
+Verification and limitations:
+
+- macOS baseline: 3,751 passed, four failed, 82 skipped. Candidate: 4,164 passed,
+  the same four failure names, 121 skipped, one todo. Failures cover two platform
+  header snapshots, the temporary DATA_DIR guard and the SQLite webpack fixture.
+- Linux amd64 baseline: 3,751 passed, four Devin CLI failures, 82 skipped.
+  Isolated baseline and candidate Devin suites each passed all eight tests.
+  Candidate full runs passed all 4,168 assertions, but exited 1; the text reporter
+  exposed `[vitest-worker]: Timeout calling "onTaskUpdate"`. These are not clean
+  full-suite passes.
+- Native Linux arm64 baseline: 3,754 passed, one failed, 82 skipped. Candidate:
+  4,167 passed, the same one failure, 121 skipped, one todo. Neither native run
+  reported an unhandled worker error. The Kimi snapshot expects `Linux x64` but
+  receives `Linux arm64`; the complete 198-test header suite passed on amd64.
+- Fork-focused suite: 106 passed. HTTP/2 server suite: two passed. Undefined
+  variable lint, React hooks lint, frozen pnpm production build and fork-diff
+  whitespace checks passed. Imported upstream whitespace was retained.
+- Both image architectures passed readiness, health, version, password login,
+  remote default-password restrictions, runtime dependency resolution,
+  independent writing toggles and invalid-value rejection, authenticated model
+  discovery, rejection without an API key, SQLite integrity, npm install/ci/npx
+  as the node user and Tailscale startup to `NeedsLogin`. The builder's private
+  Monaco sanitizer matches installed DOMPurify bytes.
+- Application CycloneDX 1.5 inventory: 188 components. Final-image Syft 1.52.0
+  inventories: 515 packages per architecture, with 1,077 amd64 and 1,076 arm64
+  CycloneDX components. Inventories do not establish vulnerability clearance.
+
+AK scan triggering returned HTTP 403 on 2026-10-02, correlation ID
+`56ea1611a58c245e29d58e4a17c6609a`; no scan for this version was found in the
+staging listing. Security verification remains pending. Alpine repository TLS
+errors interrupted initial image builds; unchanged retries succeeded.
+Evidence is retained in `/tmp/vansrouter-sync-20261002/` on the workstation.
+Browser UI, live provider integration and full desktop runtimes were not tested.
+No upstream release tag or npm package was published. Production was not changed.
+
 ## Production deployment, 2026-09-28
 
 After operator promotion, srv0 deployed the tested multiarch image:
