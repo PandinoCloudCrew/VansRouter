@@ -203,7 +203,7 @@ export class OpenCodeExecutor extends BaseExecutor {
       || `${this.origin}/zen/v1${LANE_PATH[lane]}`;
   }
 
-  buildHeaders(credentials, stream = true, model) {
+  buildHeaders(credentials, stream = true, url, model) {
     const raw = Object.fromEntries(Object.entries(credentials?.rawHeaders || {}).map(([k, v]) => [k.toLowerCase(), v]));
     const rawSession = raw["x-opencode-session"];
     const storedSession = credentials?.runtimeOpencodeSession;

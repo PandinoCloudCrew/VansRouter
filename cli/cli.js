@@ -149,6 +149,8 @@ Options:
   -v, --version       Show version
 
 Commands:
+  connect <server-url> Configure Claude Code for a remote 9router server
+                      (npx 9router connect http://host:20128 — no install needed)
   xai video --prompt "..." --output video.mp4
                       Generate a Grok Imagine video via the running gateway
                       (see: ${APP_NAME} xai video --help)
