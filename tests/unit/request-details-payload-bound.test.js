@@ -78,4 +78,18 @@ describe("truncateField — bounded stored payload", () => {
     const truncated = truncateField(big(1), 100 * 1024 * 1024);
     expect(truncated._truncated).toBe(true);
   });
+
+  it("measures the cap in UTF-8 bytes, not UTF-16 code units", () => {
+    const cap = 5 * KB;
+    // CJK chars are 1 UTF-16 code unit but 3 UTF-8 bytes: 2048 chars = 2048
+    // code units (< cap) but 6144 bytes (> cap).
+    const payload = { text: "\u4e2d".repeat(2048) };
+    const str = JSON.stringify(payload);
+    expect(str.length).toBeLessThan(cap);
+    expect(Buffer.byteLength(str, "utf8")).toBeGreaterThan(cap);
+
+    const truncated = truncateField(payload, cap);
+    expect(truncated._truncated).toBe(true);
+    expect(truncated._originalSize).toBe(Buffer.byteLength(str, "utf8"));
+  });
 });

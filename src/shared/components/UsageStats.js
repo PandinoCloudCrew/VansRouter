@@ -59,8 +59,12 @@ const topologySkeleton = (
   </div>
 );
 
+// Must match the vertical footprint of UsageChart's Card (p-3/p-4 + toggle row
+// + gap-3 + 220px ResponsiveContainer) so the chartsInView gate swap does not
+// shift the table below. ProviderBarChart/TopModelsChart are shorter (~252px) but
+// share this placeholder, so their skeletons are 300px tall while loading.
 const chartSkeleton = (
-  <div className="h-[220px] w-full animate-pulse rounded-lg border border-border bg-bg-subtle/50" aria-hidden="true" />
+  <div className="min-h-[300px] w-full animate-pulse rounded-lg border border-border bg-bg-subtle/50" aria-hidden="true" />
 );
 
 const tableSkeleton = (
@@ -632,9 +636,9 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
 
       {/* Token / Cost chart - sync period. `chartsRef` marks the first recharts
           region; the visibility gate replaces the old idle gate for the three
-          recharts charts (UsageChart + the byProvider/byModel pair below). The
-          wrapper keeps the skeleton's exact height in both states, so the gate
-          swapping in the real chart cannot move the table. */}
+          recharts charts (UsageChart + the byProvider/byModel pair below).
+          `chartSkeleton` is sized to UsageChart's full height so this swap does
+          not move the table. */}
       <div ref={chartsRef}>
         {loading || !chartsInView ? chartSkeleton : <UsageChart period={period} />}
       </div>

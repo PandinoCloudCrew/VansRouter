@@ -124,6 +124,7 @@ async function main() {
           try { record = JSON.parse(row.data); } catch { continue; }
           if (!record || typeof record !== "object") continue;
           for (const field of ["request", "providerRequest", "providerResponse", "response"]) {
+            if (record[field] == null) continue;
             record[field] = truncateField(record[field], cap);
           }
           db.run(`UPDATE requestDetails SET data = ? WHERE id = ?`, [JSON.stringify(record), row.id]);

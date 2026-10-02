@@ -91,8 +91,9 @@ export function truncateField(obj, maxSize) {
     HARD_MAX_JSON_SIZE
   );
   const str = JSON.stringify(obj || {});
-  if (str.length > cap) {
-    return { _truncated: true, _originalSize: str.length, _preview: str.substring(0, 200) };
+  const bytes = Buffer.byteLength(str, "utf8");
+  if (bytes > cap) {
+    return { _truncated: true, _originalSize: bytes, _preview: str.substring(0, 200) };
   }
   return obj || {};
 }
