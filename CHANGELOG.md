@@ -1,11 +1,11 @@
 # v0.91.60 (2026-10-01)
 
-120 commits over the v0.91.51 tag: an upstream sync to decolua/9router v0.5.95
+126 commits over the v0.91.51 tag: an upstream sync to decolua/9router v0.5.95
 cherry-picked commit by commit onto this fork, adding three OAuth-capable
 providers and GPT-6.1-era model support, followed by a repair pass over the
-conflicts the cherry-picks left behind, and finally a merge of upstream's
-grok-cli 426-gate fix that landed on `main` mid-release. 267 files,
-+15526/-1378.
+conflicts the cherry-picks left behind, a merge of upstream's grok-cli 426-gate
+fix that landed on `main` mid-release, and a measured performance pass over the
+dashboard. 271 files, +16094/-1420.
 
 ## Features
 
@@ -52,6 +52,12 @@ grok-cli 426-gate fix that landed on `main` mid-release. 267 files,
 - **opencode-go**: complete 40-model Go catalog with auto-fetch and
   family-endpoint regex, plus the seven models upstream serves but the registry
   omitted (#4357).
+- **Dashboard performance**: the three recharts usage charts are gated behind an
+  IntersectionObserver so `recharts` and `@xyflow/react` (~721 KB) stay off the
+  `/dashboard/usage` initial request graph and load only when scrolled into view;
+  the eager idle preload that defeated the gate is removed, dynamic imports carry
+  sized skeletons, and `requestDetails` rows are bounded by a UTF-8 byte cap
+  (bad stored values fall back to 5 KB instead of clamping up to 64 KB).
 
 ## Fixes
 
@@ -94,7 +100,9 @@ grok-cli 426-gate fix that landed on `main` mid-release. 267 files,
   collision, preserving API-key attribution on both the live path and the
   overlay.
 - **Dashboard**: exclude hidden providers from the usage-stats provider list;
-  `ModelSelectModal` satisfies react-hooks/set-state-in-effect.
+  `ModelSelectModal` satisfies react-hooks/set-state-in-effect; the request-details
+  drawer shows an explicit "Payload truncated" notice (with original size) instead
+  of rendering the truncation marker as if it were the payload.
 - **commandcode**: replay raw byte chunks so no NDJSON line is split.
 - **Providers**: `POST /api/providers` is O(1) in pool size for the
   MAX(priority)+1 path while explicit-priority callers still reindex the pool
@@ -137,17 +145,17 @@ grok-cli 426-gate fix that landed on `main` mid-release. 267 files,
 - **Tests**: 13 tests broken by the resolutions repaired; golden url/header
   snapshots regenerated and version-valued headers masked (`0.91.x` → `<VER>`)
   so release bumps no longer churn them.
-- **Frontend**: usage charts and `marked` lazy-loaded with idle preload, keeping
-  recharts out of dashboard initial bundles; the Hermes card uses the official
-  Nous Research logo.
+- **Frontend**: usage charts and `marked` lazy-loaded, keeping recharts out of
+  dashboard initial bundles; the Hermes card uses the official Nous Research
+  logo.
 
 ## Verification
 
-- `pnpm run build` → exit 0 ("build complete")
+- `pnpm run build` → exit 0 ("build complete"; 0 "Attempted import error")
 - `npx eslint . --quiet --no-warn-ignored` → exit 0
 - `node scripts/lint-undef.cjs` → exit 0 ("no-undef lint: clean")
-- `pnpm test` → exit 0: 4136 passed | 121 skipped | 1 todo (4258), zero
-  failures, across 407 test files (389 passed / 18 skipped)
+- `pnpm test` → exit 0: 4148 passed | 121 skipped | 1 todo (4270), zero
+  failures, across 408 test files (390 passed / 18 skipped)
 
 ## Known gaps (not claimed as verified)
 
