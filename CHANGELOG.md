@@ -1,6 +1,6 @@
-# v0.91.60 (2026-10-01)
+# v0.91.61 (2026-10-02)
 
-126 commits over the v0.91.51 tag: an upstream sync to decolua/9router v0.5.95
+128 commits over the v0.91.51 tag: an upstream sync to decolua/9router v0.5.95
 cherry-picked commit by commit onto this fork, adding three OAuth-capable
 providers and GPT-6.1-era model support, followed by a repair pass over the
 conflicts the cherry-picks left behind, a merge of upstream's grok-cli 426-gate
@@ -143,8 +143,9 @@ dashboard. 271 files, +16094/-1420.
   files; `claude.js` regained upstream's assistant-anchor loop for
   `anchorClaudeCache`.
 - **Tests**: 13 tests broken by the resolutions repaired; golden url/header
-  snapshots regenerated and version-valued headers masked (`0.91.x` → `<VER>`)
-  so release bumps no longer churn them.
+  snapshots regenerated and the app's own version masked
+  (`VansRouter/<version>` → `VansRouter/<VER>`) so release bumps no longer churn
+  them, while pinned upstream CLI versions stay guarded.
 - **Frontend**: usage charts and `marked` lazy-loaded, keeping recharts out of
   dashboard initial bundles; the Hermes card uses the official Nous Research
   logo.
