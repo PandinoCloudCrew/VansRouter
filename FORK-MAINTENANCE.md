@@ -9,6 +9,37 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Production deployment, 2026-10-02
+
+After operator promotion and deployment authorization, srv0 deployed:
+
+`registry.pcc.fyi/pcc/vansrouter:0.91.61-writing.1@sha256:7a3506a6ff74430222af19f8ba7d9218f9f2ce75ebca2b24e460cfc436c9bcbb`
+
+Production artifact metadata matched the tested staging digest, but its Docker
+manifest was missing. Pushing the identical multiarch image restored the
+manifest without changing its digest. srv0 pulled the pinned Linux amd64 image
+before activation.
+
+Container `9router` became healthy. Public version returned `0.91.61`, health
+returned `ok: true`, and readiness reported `ok: true`, `database: ready`.
+SQLite integrity was `ok`, schemaVersion remained `8`, and the existing API key
+returned HTTP 200 with 50 models (49 before). Checked authentication and writing
+settings were unchanged. The original `9router_9router-data` volume remains
+mounted at `/app/data`; no persisted Tailscale daemon override exists.
+Dashboard returned 307 to `/masuk`; OIDC initiation returned 307 to
+`https://sso.pandino.co`. Full human OIDC sign-in was not tested.
+
+An integrity-checked SQLite online backup and full volume backup were uploaded
+to `r2:pcc-9router/backups/pcc-soho-srv0/` as `predeploy-0.91.61.sqlite.gz` and
+`9router-volume-20261002.tar.gz`. Download-based verification reported zero
+differences for both. Evidence, backups and `compose.previous.yaml` remain in
+`/home/pcc/builds/vansrouter-0.91.61-deploy-20261002/` on srv0.
+Rollback uses that previous Compose file and
+`registry.pcc.fyi/pcc/vansrouter:0.91.51-writing.1@sha256:4453909a91bbbbb9284c7fd13a38263bbb2bef5a4c7d41fe522349d93ec618ea`,
+retaining the same volume. The local deployment checkout now matches the image
+pin, preserving its other existing edits. Deployment does not establish new
+vulnerability scan evidence; the scan limitations below remain applicable.
+
 ## Upstream synchronization and staging image, 2026-10-02
 
 Merge `0ea505680ddfa9968bb7e59ed1f048a3642fd15f` includes upstream v0.91.61
