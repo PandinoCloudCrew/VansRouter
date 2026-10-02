@@ -38,22 +38,6 @@ export default function DashboardLayout({ children }) {
   const notifications = useNotificationStore((state) => state.notifications);
   const removeNotification = useNotificationStore((state) => state.removeNotification);
 
-  // Preload heavy usage charts in background when browser is idle
-  useEffect(() => {
-    const preload = () => {
-      import("@/shared/components/UsageStats").catch(() => {});
-      import("@/app/(dashboard)/dashboard/usage/components/UsageChart").catch(() => {});
-      import("@/app/(dashboard)/dashboard/usage/components/ProviderBarChart").catch(() => {});
-      import("@/app/(dashboard)/dashboard/usage/components/TopModelsChart").catch(() => {});
-    };
-    if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(preload, { timeout: 4000 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const timer = setTimeout(preload, 2500);
-    return () => clearTimeout(timer);
-  }, []);
-
   useEffect(() => {
     if (!sidebarOpen) return;
     const onEsc = (e) => { if (e.key === "Escape") setSidebarOpen(false); };

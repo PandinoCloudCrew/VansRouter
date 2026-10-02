@@ -22,10 +22,19 @@ const topologyPanelSkeleton = <div className={TOPOLOGY_PANEL_CLASS} aria-hidden=
 
 // ponytail: two independent guards, both needed. `loading:` (below) keeps the
 // skeleton up for the whole chunk fetch, so the area never collapses mid-fetch;
-// the parent's `chartsReady` gate keeps ~721KB of recharts + reactflow off the
-// critical path so the page is interactive first. Drop either one and you
-// regress one half: without `loading:` the chart area goes 0px mid-fetch,
-// without the gate recharts lands ~300ms earlier and TBT climbs back to ~3.5s.
+// the parent gates keep ~721KB of recharts + reactflow off the critical path so
+// the page is interactive first. Drop either one and you regress one half:
+// without `loading:` the chart area goes 0px mid-fetch, without a gate the
+// heavy chunks land ~300ms earlier and TBT climbs back to ~3.5s.
+//
+// The two gates are distinct on purpose:
+//   idleReadyForTopology — requestIdleCallback. The reactflow topology sits at
+//     y≈718, partly inside the 823px viewport, so a visibility gate would fire
+//     immediately and change nothing. Idle already keeps its 229KB off first paint.
+//   chartsInView — IntersectionObserver on the first recharts chart (y≈1624,
+//     far below the fold). Idle fires almost immediately when the main thread
+//     frees up, which does NOT keep the 482KB of recharts off the critical path;
+//     visibility does, because it cannot fire until the user scrolls.
 
 const ProviderTopology = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/ProviderTopology"), { ssr: false, loading: () => topologyPanelSkeleton });
 const UsageChart = dynamic(() => import("@/app/(dashboard)/dashboard/usage/components/UsageChart"), { ssr: false, loading: () => chartSkeleton });
@@ -79,6 +88,34 @@ function TimeAgo({ timestamp }) {
 }
 
 const EMPTY_REQUESTS = [];
+
+// Fires once when the element first intersects the viewport (plus rootMargin),
+// then disconnects — a below-fold element only ever needs the one transition.
+// ponytail: no re-arm on scroll-out; if an "unload when hidden" need appears,
+// keep the observer and toggle instead.
+function useInView(rootMargin = "200px") {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setInView(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [rootMargin]);
+  return [ref, inView];
+}
 
 function RecentRequests({ requests = EMPTY_REQUESTS }) {
   return (
@@ -295,22 +332,23 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
   const [tableView, setTableView] = useState("model");
   const [viewMode, setViewMode] = useState("costs");
   const [providers, setProviders] = useState([]);
-  const [chartsReady, setChartsReady] = useState(false);
+  const [idleReadyForTopology, setIdleReadyForTopology] = useState(false);
+  const [chartsRef, chartsInView] = useInView("200px");
   const [periodLocal, setPeriodLocal] = useState("today");
   const isInitialLoad = useRef(true);
   const hasLoadedStats = useRef(false);
   const period = periodProp ?? periodLocal;
   const setPeriod = setPeriodProp ?? setPeriodLocal;
-  // Hold the charts (recharts + reactflow, ~721KB) until the page is idle, so the
-  // first input is not competing with their parse. The `loading:` fallbacks on the
-  // dynamic() chunks keep skeletons in place while they fetch.
+  // Hold the reactflow topology (~229KB) until the page is idle, so the first
+  // input is not competing with its parse. It sits partly in view, so this is
+  // the only gate that can help it — see the note above the dynamic() imports.
   useEffect(() => {
     if (typeof window === "undefined") return;
     if ("requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(() => setChartsReady(true), { timeout: 2000 });
+      const id = window.requestIdleCallback(() => setIdleReadyForTopology(true), { timeout: 2000 });
       return () => window.cancelIdleCallback(id);
     }
-    const timer = setTimeout(() => setChartsReady(true), 200);
+    const timer = setTimeout(() => setIdleReadyForTopology(true), 200);
     return () => clearTimeout(timer);
   }, []);
   // Fetch connected providers once, deduplicate by provider type
@@ -580,7 +618,7 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
       {loading ? overviewSkeleton : <OverviewCards stats={stats} />}
 
       {/* Provider topology + Recent Requests */}
-      {loading || !chartsReady ? topologySkeleton : (
+      {loading || !idleReadyForTopology ? topologySkeleton : (
         <div className="grid min-w-0 grid-cols-1 items-stretch gap-2 lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
           <ProviderTopology
             providers={providers}
@@ -592,11 +630,17 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
         </div>
       )}
 
-      {/* Token / Cost chart - sync period */}
-      {loading || !chartsReady ? chartSkeleton : <UsageChart period={period} />}
+      {/* Token / Cost chart - sync period. `chartsRef` marks the first recharts
+          region; the visibility gate replaces the old idle gate for the three
+          recharts charts (UsageChart + the byProvider/byModel pair below). The
+          wrapper keeps the skeleton's exact height in both states, so the gate
+          swapping in the real chart cannot move the table. */}
+      <div ref={chartsRef}>
+        {loading || !chartsInView ? chartSkeleton : <UsageChart period={period} />}
+      </div>
 
       {/* Provider and model breakdown charts */}
-      {!loading && chartsReady && (stats.byProvider || stats.byModel) && (
+      {!loading && chartsInView && (stats.byProvider || stats.byModel) && (
         <div className="grid min-w-0 grid-cols-1 gap-2 lg:grid-cols-2">
           <ProviderBarChart byProvider={stats.byProvider} />
           <TopModelsChart byModel={stats.byModel} />
