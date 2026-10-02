@@ -1,5 +1,33 @@
 # v0.91.61 (2026-10-02)
 
+## PCC fork image 0.91.61-writing.1
+
+- **Upstream synchronization**: Merge `0ea50568` imports 132 commits through
+  upstream `f3da996e`, including Muse/v1m/Hive and aggregator providers, GLM OAuth,
+  GPT-6.1 and Claude/Kiro models, CLI connection/profile tools, provider header
+  overrides, Gemini Live STT, Responses fixes and dashboard performance changes.
+- **Fork compatibility**: Preserved independent Plain English, STE-inspired and
+  Action-first controls together with upstream provider overrides. Retained the
+  patched Monaco sanitizer, runtime security pins, dependency versions and
+  persistent Docker volume configuration. Both npm lockfile roots track 0.91.61.
+- **Publication**: Published Linux amd64 and arm64 images to
+  `registry.pcc.fyi/pcc-staging/vansrouter:0.91.61-writing.1`, digest
+  `sha256:7a3506a6ff74430222af19f8ba7d9218f9f2ce75ebca2b24e460cfc436c9bcbb`.
+  Platform pulls, AK metadata, provenance and SBOM attestations were verified.
+  Both platforms passed health/authentication, writing settings, API-key access,
+  SQLite, npm/npx and Tailscale checks against the published digest.
+- **Validation**: Production build, both lint gates, 106 fork-focused tests and
+  two HTTP/2 tests passed. Linux amd64 passed 4,168 assertions but reported a
+  Vitest worker RPC timeout. Native arm64 passed 4,167 tests with the same Kimi
+  architecture snapshot failure as baseline; all 198 header tests passed on
+  amd64. macOS retained the baseline's four failure names. Full before/after
+  counts, inventories and limitations are recorded in `FORK-MAINTENANCE.md`.
+- **Limits**: AK scan triggering returned HTTP 403; security verification remains
+  pending. Browser UI, live providers and full desktop runtimes were not tested.
+  Production was not changed; no upstream release tag or npm package was published.
+
+## Upstream Release Notes
+
 128 commits over the v0.91.51 tag: an upstream sync to decolua/9router v0.5.95
 cherry-picked commit by commit onto this fork, adding three OAuth-capable
 providers and GPT-6.1-era model support, followed by a repair pass over the
