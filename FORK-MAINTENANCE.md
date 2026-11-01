@@ -45,6 +45,45 @@ Verification before publication:
   bypass, the reported payload size, SQLite integrity, npm/npx availability,
   and Tailscale version. Published-image verification is recorded separately.
 
+### Published staging image and final checks
+
+Published source commit `bbda7fe953fa0e3ecc1479a98ebc069d82a75e35` as:
+
+`registry.pcc.fyi/pcc-staging/vansrouter:0.91.90-writing.1@sha256:96db647561913bd0d78ea4cd44bb2b2da4c89485abb67944250542c28e7da027`
+
+Artifact Keeper metadata matches that index digest. Registry inspection confirms
+Linux amd64 and arm64 manifests, with readable SLSA provenance and SPDX SBOM
+attestations for both. Platform-specific pulls and the repository container
+smoke script passed for both architectures, including readiness, health,
+version, password login, remote default-password restrictions, architecture,
+and runtime dependency closure.
+
+Additional published-digest checks passed on both platforms: independent writing
+settings and invalid-value rejection, authenticated model discovery, mock chat
+and streaming tool dispatch, 429 account fallback, one copy of each writing
+prompt, request bypass, the reported payload size, SQLite integrity, npm
+install/ci/npx as the node user, and Tailscale userspace startup to `NeedsLogin`.
+These checks use a local mock provider, not a live external AI provider.
+
+Application CycloneDX 1.5 inventory: 210 components. Syft 1.55.0 final-image
+inventories contain 1,886 amd64 and 1,883 arm64 CycloneDX components. These
+inventories do not establish vulnerability clearance.
+
+AK's automatic Grype scan `eb76f4d1-3aa5-491f-aba9-f08655e3cbbb` completed on
+2026-11-01 with 190 findings: six critical, 88 high, 91 medium and five low.
+All 190 finding records were read across both pages. Critical findings flag
+Next.js 16.2.9 and Go stdlib 1.26.8; scanner-reported fixes include Next.js
+16.3.6 and Go 1.26.9. No findings were suppressed or acknowledged.
+The separate image scan `5eeb35bb-3f5e-4a80-bba6-c28e209579ae` failed; its
+findings endpoint reports no findings, which is not a passing scan. Dependency
+scan `46c46dfe-f4e8-4098-bbda-d2fcde2043e8` completed with zero findings.
+A `not_applicable` scan is also present and is not security clearance.
+No new vulnerability scan was triggered by the agent; these are registry
+results produced automatically on upload.
+
+The image remains in staging. Production retains v0.91.61 with the payload
+setting change below. No new image was promoted or deployed to production.
+
 Production's payload ceiling was changed from 15 MiB to 20 MiB, retaining image
 `0.91.61-writing.1` and volume `9router_9router-data`. Health/readiness returned
 200, SQLite integrity was `ok`, and authenticated model discovery returned 200
