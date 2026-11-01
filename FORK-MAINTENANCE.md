@@ -94,6 +94,24 @@ its subpackages: 828 imports on amd64, 827 on arm64, checked using Go 1.26.10,
 `CGO_ENABLED=0`, and the final module pins. This is linked-code evidence;
 module-level advisory rows remain visible if scanners report them.
 
+### writing.3 publication blocked by registry quota
+
+Source `aa144542377ed3480b40ea4332b22f9e75d3aef8` is pushed to the fork.
+The multiarch build and local amd64/arm64 runtime checks passed, including
+npm install/ci/npx, package-content glob matching, exact patched dependency
+versions, mock routing/streaming/fallback, settings, payload, SQLite, audio
+conversion, and Tailscale startup. The same package-content check passed on
+writing.2 before this update. Application source/lockfiles are unchanged from
+the full 5,145-passed/seven-failed run; that full suite was not repeated for
+Docker-only changes.
+
+The registry upload failed with HTTP 507, `Repository storage quota exceeded`.
+`pcc-staging` reports a 2,147,483,648-byte quota and 2,104,843,375 bytes used.
+The writing.3 tag was still absent when checked after the rejection. No older
+artifact was deleted and no quota/security policy was changed. Publication
+requires additional registry capacity; writing.2 remains the latest published
+image. writing.3 has no completed registry scan and is not security-cleared.
+
 ## Upstream synchronization and payload limit, 2026-11-01
 
 The fork imports upstream v0.91.90 (`4da89c6a`), 191 commits beyond its
