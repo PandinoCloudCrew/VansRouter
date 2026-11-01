@@ -53,6 +53,47 @@ Evidence is under `/tmp/vansrouter-sync-20261101/security-*`. Live providers,
 browser UI and full desktop runtimes were not tested. The new image is a
 staging publication; production still runs v0.91.61 with the 20 MiB ceiling.
 
+### Published writing.2 result and remaining patches
+
+Source `194fbe31d915eb19804e3b4d81db6295a8f6e270` published as
+`registry.pcc.fyi/pcc-staging/vansrouter:0.91.90-writing.2@sha256:a4d6ad09b958817889be4efd49c118e290a4a0a5dbb7312bf5c32938613955a1`.
+Registry metadata, both platform manifests, SLSA provenance and SPDX SBOMs
+match. Forced platform pulls, standard container smoke and expanded runtime
+checks passed on amd64 and arm64, including WAV-to-24-kHz-PCM conversion.
+Application inventory: 211 components. Syft image inventories: 744/743 packages
+and 1,902/1,899 CycloneDX components for amd64/arm64 respectively.
+
+The amd64 platform Trivy scan `ca6f1e17-8c5f-419b-88db-e7356ff7975d`
+completed with 26 findings (13 high, 13 medium), compared with 137
+(nine critical, 53 high, 60 medium, 15 low) in writing.1 platform scan
+`2eff6f12-7c78-46b4-9bf5-b5cc82fd5c74`. Reading every page and matching
+scanner/component/advisory removes 111 rows, adds none, retains 26. This is
+a Trivy comparison, not a comparison with the 190-row Grype baseline.
+
+The tag-level Grype scan `143c9460-4b7c-4079-9d8c-a4191e3884c9` and image
+scan `878e1300-4bcf-4bbd-a000-21a8b49d4de2` failed. The arm64 platform scans
+also failed. Empty findings from those attempts are not clearance. Dependency
+scan `1bbeb29d-6ced-4698-acc2-7ad24271a44a` completed with zero findings.
+Direct DTrack project discovery found writing.1 but no writing.2 project.
+No scan was retriggered, BOM uploaded, finding suppressed, or policy changed.
+
+### writing.3 follow-up source
+
+The remaining Trivy records identify fixes newer than the Grype baseline:
+Go 1.26.10 and `golang.org/x/net` 0.62.0 (which requires
+`golang.org/x/crypto` 0.58.0). npm 12.2.1 still bundles affected
+undici, ip-address, glob and minimatch. `docker/npm-runtime` supplies a separate
+runtime manifest and lockfile for npm's existing dependency graph, updating
+those packages to 6.29.1, 10.7.5, 14.0.2 and 11.0.1 respectively. The Docker
+builder and runner install this graph with `npm ci --ignore-scripts` after
+installing npm 12.2.1. Root-package overrides alone do not replace npm's bundled
+dependencies; the installed dependency versions were checked directly.
+
+Both Go command dependency graphs exclude `golang.org/x/crypto/openpgp` and
+its subpackages: 828 imports on amd64, 827 on arm64, checked using Go 1.26.10,
+`CGO_ENABLED=0`, and the final module pins. This is linked-code evidence;
+module-level advisory rows remain visible if scanners report them.
+
 ## Upstream synchronization and payload limit, 2026-11-01
 
 The fork imports upstream v0.91.90 (`4da89c6a`), 191 commits beyond its

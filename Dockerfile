@@ -14,6 +14,10 @@ ARG NPM_VERSION=12.2.1
 RUN apk upgrade --no-cache && \
   npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund && \
   npm cache clean --force
+# ponytail: patch npm's bundled dependencies until npm ships these security fixes.
+COPY docker/npm-runtime/package.json docker/npm-runtime/package-lock.json /usr/local/lib/node_modules/npm/
+RUN npm ci --prefix /usr/local/lib/node_modules/npm --ignore-scripts --omit=dev --no-audit --no-fund && \
+  npm cache clean --force
 
 RUN apk add --no-cache python3 make g++ linux-headers
 
@@ -66,7 +70,7 @@ RUN npm ci --ignore-scripts --no-audit --no-fund && \
 RUN node -e "const Database = require('better-sqlite3'); const db = new Database(':memory:'); db.prepare('SELECT 1').get(); db.close(); console.log('native dependency stage: better-sqlite3')"
 
 # ponytail: rebuild the stable release until upstream binaries include these security fixes.
-FROM --platform=$BUILDPLATFORM golang:1.26.9-alpine@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade AS tailscale
+FROM --platform=$BUILDPLATFORM golang:1.26.10-alpine@sha256:a2012b4a1d1f9f7e9f44e0d39b805a901e856b1dd80b4e6ee4338db547050308 AS tailscale
 ARG TAILSCALE_VERSION=1.102.4
 ARG TARGETARCH
 WORKDIR /src
@@ -76,7 +80,7 @@ RUN apk add --no-cache curl ca-certificates && \
   tar -xzf /tmp/tailscale.tgz --strip-components=1 -C /src
 RUN --mount=type=cache,target=/go/pkg/mod \
   --mount=type=cache,target=/root/.cache/go-build \
-  go get golang.org/x/crypto@v0.56.0 golang.org/x/image@v0.45.0 \
+  go get golang.org/x/crypto@v0.58.0 golang.org/x/image@v0.45.0 golang.org/x/net@v0.62.0 \
     github.com/insomniacslk/dhcp@v0.0.0-20260719225207-c76316d4aa82 \
     ./cmd/tailscale ./cmd/tailscaled && \
   CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} \
@@ -91,6 +95,10 @@ WORKDIR /app
 ARG NPM_VERSION=12.2.1
 RUN apk upgrade --no-cache && \
   npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund && \
+  npm cache clean --force
+# ponytail: patch npm's bundled dependencies until npm ships these security fixes.
+COPY docker/npm-runtime/package.json docker/npm-runtime/package-lock.json /usr/local/lib/node_modules/npm/
+RUN npm ci --prefix /usr/local/lib/node_modules/npm --ignore-scripts --omit=dev --no-audit --no-fund && \
   npm cache clean --force
 
 LABEL org.opencontainers.image.title="VansRouter" \
