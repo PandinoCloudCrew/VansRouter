@@ -9,6 +9,50 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Dependency remediation, 2026-11-01
+
+The `0.91.90-writing.2` source updates Next.js and `@next/env` to 16.4.3,
+ESLint's Next config to 16.4.3, DOMPurify to 3.4.17, and node-forge to 1.4.2
+in both app and CLI manifests. Both lockfile formats were refreshed within
+existing dependency ranges. Next's dependency graph resolves Sharp 0.35.5,
+PostCSS 8.5.23, source-map-js 1.2.2, nanoid 3.3.20, and
+baseline-browser-mapping 2.11.34. The top-level PostCSS minimum is 8.5.23.
+No new dependency override was needed beyond the existing Monaco sanitizer
+policy.
+
+The Docker builder and runner use npm 12.2.1, whose published engine range
+includes pinned Node 22.23.4. Its bundled packages include brace-expansion
+5.0.12, http-cache-semantics 4.3.0, ip-address 10.7.2,
+postcss-selector-parser 7.1.6, and undici 6.29.0. Tailscale is rebuilt with
+checksum-pinned Go 1.26.9. The Node base, SQLite native binary pins, persistent
+volume contract and runtime paths retain their existing policy.
+
+Verification before publication:
+
+- Full macOS suite before and after dependency changes: 5,145 passed, seven
+  failed, 121 skipped, one todo. Failure names are identical. Final focused
+  suite: 124 passed in ten suites. HTTP/2: two passed.
+- Frozen pnpm install, npm lockfile/manifest consistency, macOS production
+  build and Linux amd64/arm64 image builds passed. The local CSS optimizer
+  warning about `shadow-[var(...)]` also appears in the pre-update build log.
+- Local containers on both platforms passed version/login, independent writing
+  settings and validation, authenticated models, mock chat/streaming tools,
+  429 account fallback, single prompt injection, bypass, payload, SQLite,
+  npm 12 install/ci/npx as the node user, and Tailscale startup to `NeedsLogin`.
+  Published-image scan and runtime evidence follow separately.
+
+The available dependency updates target the original Grype findings; closure
+must be established by the new registry scan. Alpine's configured v3.24
+repositories have no newer fixed packages for several media/system findings.
+The official CVE record for `CVE-2026-107675` affects FFmpeg through 9.0.2,
+the latest version listed at `https://ffmpeg.org/releases/` when checked.
+Alpine's security database lists no fix for that finding. FFmpeg/media support
+is retained; no finding is suppressed or treated as resolved without evidence.
+
+Evidence is under `/tmp/vansrouter-sync-20261101/security-*`. Live providers,
+browser UI and full desktop runtimes were not tested. The new image is a
+staging publication; production still runs v0.91.61 with the 20 MiB ceiling.
+
 ## Upstream synchronization and payload limit, 2026-11-01
 
 The fork imports upstream v0.91.90 (`4da89c6a`), 191 commits beyond its

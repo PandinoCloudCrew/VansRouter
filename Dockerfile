@@ -10,7 +10,7 @@ ARG VCS_REF=unknown
 FROM --platform=$BUILDPLATFORM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS builder
 WORKDIR /app
 
-ARG NPM_VERSION=11.20.0
+ARG NPM_VERSION=12.2.1
 RUN apk upgrade --no-cache && \
   npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund && \
   npm cache clean --force
@@ -66,7 +66,7 @@ RUN npm ci --ignore-scripts --no-audit --no-fund && \
 RUN node -e "const Database = require('better-sqlite3'); const db = new Database(':memory:'); db.prepare('SELECT 1').get(); db.close(); console.log('native dependency stage: better-sqlite3')"
 
 # ponytail: rebuild the stable release until upstream binaries include these security fixes.
-FROM --platform=$BUILDPLATFORM golang:1.26.8-alpine@sha256:ce864e7223ac17b1775e6fd0b4c0db580c2eb50e7953a427916379e4b92a1628 AS tailscale
+FROM --platform=$BUILDPLATFORM golang:1.26.9-alpine@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade AS tailscale
 ARG TAILSCALE_VERSION=1.102.4
 ARG TARGETARCH
 WORKDIR /src
@@ -88,7 +88,7 @@ ARG APP_VERSION
 ARG VCS_REF
 WORKDIR /app
 
-ARG NPM_VERSION=11.20.0
+ARG NPM_VERSION=12.2.1
 RUN apk upgrade --no-cache && \
   npm install --global "npm@${NPM_VERSION}" --ignore-scripts --no-audit --no-fund && \
   npm cache clean --force
