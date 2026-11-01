@@ -498,6 +498,8 @@ async function handleSingleModelChat(body, modelStr, clientRawRequest = null, re
       plainEnglishEnabled: chatSettings.plainEnglishEnabled !== false,
       steEnabled: chatSettings.steEnabled !== false,
       actionFirstEnabled: chatSettings.actionFirstEnabled !== false,
+      customPromptEnabled: !!chatSettings.customPromptEnabled,
+      customPrompt: chatSettings.customPrompt || "",
       loopGuardEnabled: chatSettings.loopGuardEnabled !== false && chatSettings.loopGuardEnabled !== 0,
       providerThinking,
       clientSignal,

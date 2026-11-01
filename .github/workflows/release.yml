@@ -80,13 +80,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push staging image
+      - name: Build and push by digest
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
-          push: true
-          tags: ${{ env.GHCR_IMAGE }}:release-${{ github.run_id }}-${{ github.run_attempt }}
+          # No tag is created here. The multi-arch index is pushed by digest and
+          # the promote job attaches the version tag and latest to that exact
+          # digest, so an unverified image never carries a user-facing tag and
+          # no staging or attestation tag appears in the package.
+          outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=true
           github-token: ${{ secrets.GITHUB_TOKEN }}
           cache-from: type=gha,scope=release
           cache-to: type=gha,scope=release,mode=max,ignore-error=true,timeout=5m
@@ -161,7 +164,10 @@ jobs:
         with:
           subject-name: ${{ env.GHCR_IMAGE }}
           subject-digest: ${{ steps.build.outputs.digest }}
-          push-to-registry: true
+          # GitHub stores the attestation and `gh attestation verify` reads it
+          # from there; pushing it to the registry would create a public
+          # sha256-<digest> tag that GitHub shows as a separate "version".
+          push-to-registry: false
 
   package-npm:
     needs: check-branch
@@ -245,7 +251,10 @@ jobs:
     environment:
       name: release
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # npm can accept a publish into its staged-publish window and keep the
+    # version out of the packument for ~17 minutes (npm/cli#9889). The verify
+    # loop below waits up to 20 minutes, so the job has to outlive it.
+    timeout-minutes: 35
     permissions:
       actions: read
       contents: read
@@ -296,14 +305,38 @@ jobs:
             exit 1
           fi
           if [ "$existing_integrity" = "MISSING" ]; then
-            npm publish "$tarball" --provenance
+            if ! publish_log="$(npm publish "$tarball" --provenance 2>&1)"; then
+              printf '%s\n' "$publish_log"
+              # Two races leave the version out of the packument even though the
+              # registry accepted it: a concurrent run published it between the
+              # lookup and this call, or the publish landed in npm's staged
+              # window (npm/cli#9889, observed on v0.91.87: the PUT returned 202,
+              # the version stayed invisible for >15 minutes, and a retry got
+              # E409 "previously staged version"). Both mean "already accepted";
+              # the verification loop below decides by integrity. Any other
+              # failure, or a conflict naming a different version, stays fatal.
+              if printf '%s' "$publish_log" | grep -Eq "previously published versions:? *\"?${RELEASE_VERSION//./\\.}\"?|previously staged version \"?${RELEASE_VERSION//./\\.}\"?"; then
+                echo "::warning::${RELEASE_VERSION} is already published or staged; verifying the registry artifact instead"
+              else
+                echo "::error::npm publish failed"
+                exit 1
+              fi
+            else
+              printf '%s\n' "$publish_log"
+            fi
           elif [ "$existing_integrity" = "$EXPECTED_INTEGRITY" ]; then
             echo "npm version ${RELEASE_VERSION} is already published with the expected artifact"
           else
             echo "::error::npm version ${RELEASE_VERSION} already exists with a different artifact"
             exit 1
           fi
-          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+          # npm accepts a publish before the version is readable (it reports
+          # "being processed"). The observed delays are ~9 minutes normally and
+          # up to ~17 minutes when the publish lands in the staged window
+          # (npm/cli#9889). 80 attempts at 15s bounds the wait at 20 minutes.
+          attempts=80
+          delay=15
+          for attempt in $(seq 1 "$attempts"); do
             if ! published_integrity="$(node scripts/npm-integrity.cjs "vansrouter@${RELEASE_VERSION}")"; then
               echo "::error::Unable to verify npm registry after publish"
               exit 1
@@ -316,9 +349,12 @@ jobs:
               echo "::error::npm published an unexpected integrity for ${RELEASE_VERSION}"
               exit 1
             fi
-            sleep 5
+            if [ "$attempt" -lt "$attempts" ]; then
+              echo "npm does not list ${RELEASE_VERSION} yet (attempt ${attempt}/${attempts}); retrying in ${delay}s"
+              sleep "$delay"
+            fi
           done
-          echo "::error::npm publish did not become visible with the expected integrity after ${attempt} attempts"
+          echo "::error::npm publish did not become visible with the expected integrity after ${attempts} attempts"
           exit 1
 
   promote-ghcr:

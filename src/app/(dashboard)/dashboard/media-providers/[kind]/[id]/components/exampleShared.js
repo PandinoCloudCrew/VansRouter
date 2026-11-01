@@ -49,6 +49,8 @@ export const KIND_EXAMPLE_CONFIG = {
       { key: "response_format", label: "Format", type: "select", default: "", options: ["", "url", "b64_json"] },
       { key: "image_detail", label: "Image Detail", type: "select", default: "high", options: ["auto", "low", "high", "original"] },
       { key: "output_format", label: "Codec", type: "select", default: "png", options: ["png", "jpeg", "webp"] },
+      { key: "watermark", label: "Watermark", type: "boolean", default: true },
+      { key: "prompt_extend", label: "Prompt Extend", type: "boolean", default: true },
     ],
   },
   imageToText: {
@@ -72,5 +74,20 @@ export const KIND_EXAMPLE_CONFIG = {
     defaultInput: "A calm piano melody",
     bodyKey: "prompt",
     defaultResponse: `{\n  "data": [\n    { "url": "...", "format": "mp3" }\n  ]\n}`,
+  },
+  systemone: {
+    inputLabel: "State",
+    inputPlaceholder: "Situation, support ticket, or text to evaluate",
+    defaultInput: "My payments have failed for three days and I am losing sales. Please help now.",
+    bodyKey: "state",
+    extraBody: {
+      questions: {
+        is_urgent: {
+          type: "noul",
+          instructions: "Does this request require urgent attention?",
+        },
+      },
+    },
+    defaultResponse: `{\n  "model": "jev-1.13",\n  "answers": {\n    "is_urgent": { "type": "noul", "noul": 0.99 }\n  },\n  "usage": { "input_tokens": 312, "output_tokens": 48 }\n}`,
   },
 };

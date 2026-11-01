@@ -32,10 +32,16 @@ function buildProviderEntry(r) {
     ...(r.hasProviderSpecificData ? { hasProviderSpecificData: true } : {}),
     ...(r.noAuth ? { noAuth: true } : {}),
     ...(r.passthroughModels ? { passthroughModels: true } : {}),
+    // Explicit opt-in for feeding the chat allowlist from the live catalogue;
+    // declared per provider so the fetcher merge is not implied by noAuth or by
+    // merely declaring modelsFetcher (see allowedModels.js).
+    ...(r.liveCatalog ? { liveCatalog: true } : {}),
     ...(r.hasOAuth ? { hasOAuth: true } : {}),
     ...(r.authModes ? { authModes: r.authModes } : {}),
     ...(r.authType ? { authType: r.authType } : {}),
     ...(r.authHint ? { authHint: r.authHint } : {}),
+    ...(r.apiKeyOptionalWith ? { apiKeyOptionalWith: r.apiKeyOptionalWith } : {}),
+    ...(r.credentialForm ? { credentialForm: r.credentialForm } : {}),
   };
 }
 
@@ -80,6 +86,7 @@ export const MEDIA_PROVIDER_KINDS = [
   { id: "webFetch",    label: "Web Fetch",      icon: "language",          endpoint: { method: "POST", path: "/v1/web/fetch" } },
   { id: "video",       label: "Video",          icon: "movie",             endpoint: { method: "POST", path: "/v1/videos/generations" } },
   { id: "music",       label: "Music",          icon: "music_note",        endpoint: { method: "POST", path: "/v1/audio/music" } },
+  { id: "systemone",   label: "System One",     icon: "psychology",        endpoint: { method: "POST", path: "/v1/systemone" }, isNew: true },
 ];
 
 export const OPENAI_COMPATIBLE_PREFIX = "openai-compatible-";

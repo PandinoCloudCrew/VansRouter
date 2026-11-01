@@ -15,14 +15,40 @@ import { getSettings } from "@/lib/localDb";
 import { getModelInfo, getComboModels } from "../services/model.js";
 import { isModelAllowed } from "../services/allowedModels.js";
 import { handleImageGenerationCore } from "open-sse/handlers/imageGenerationCore.js";
+import { getImageAdapter } from "open-sse/handlers/imageProviders/index.js";
 import { errorResponse, unavailableResponse } from "open-sse/utils/error.js";
 import { HTTP_STATUS } from "open-sse/config/runtimeConfig.js";
 import { updateProviderCredentials, checkAndRefreshToken } from "../services/tokenRefresh.js";
 import { handleComboChat, stripComboPrefix } from "open-sse/services/combo.js";
 import * as log from "../utils/logger.js";
+import { saveRequestUsage } from "@/lib/usageDb.js";
 
 // Providers that don't require credentials (noAuth)
 const NO_AUTH_PROVIDERS = new Set(["sdwebui", "comfyui"]);
+
+function recordImageRequestUsage({ provider, model, connectionId, apiKey, endpoint, usage }) {
+  if (!usage || typeof usage !== "object") return;
+  const promptTokens = usage.prompt_tokens;
+  const completionTokens = usage.completion_tokens;
+  if (!Number.isSafeInteger(promptTokens) || promptTokens < 0 ||
+      !Number.isSafeInteger(completionTokens) || completionTokens < 0) {
+    return;
+  }
+  // Same floor as the canonical writer (chatCore/requestDetail.js): a 0/0
+  // completion is not a billable event, and saveRequestUsage bumps the request
+  // counters unconditionally, so recording it inflates them.
+  if (promptTokens === 0 && completionTokens === 0) return;
+
+  saveRequestUsage({
+    provider,
+    model,
+    connectionId: connectionId || undefined,
+    apiKey: apiKey || undefined,
+    endpoint: endpoint || null,
+    tokens: usage,
+    status: "success",
+  }).catch(() => {});
+}
 
 /**
  * Handle image generation request
@@ -67,7 +93,10 @@ export async function handleImageGeneration(request) {
     return handleComboChat({
       body,
       models: comboModels,
-      handleSingleModel: (b, m) => handleSingleModelImage(b, m, { wantsStream, binaryOutput, preferredConnectionId, apiKeyInfo }),
+      // apiKeyInfo feeds this fork's ACL checks (isProviderAllowed/isModelAllowed);
+      // apiKey + endpoint feed upstream's per-request usage attribution. Both are
+      // needed, so neither may replace the other.
+      handleSingleModel: (b, m) => handleSingleModelImage(b, m, { wantsStream, binaryOutput, preferredConnectionId, apiKeyInfo, apiKey, endpoint: url.pathname }),
       log,
       comboName: comboNameImg,
       comboStrategy,
@@ -77,10 +106,10 @@ export async function handleImageGeneration(request) {
     });
   }
 
-  return handleSingleModelImage(body, modelStr, { wantsStream, binaryOutput, preferredConnectionId, apiKeyInfo });
+  return handleSingleModelImage(body, modelStr, { wantsStream, binaryOutput, preferredConnectionId, apiKeyInfo, apiKey, endpoint: url.pathname });
 }
 
-async function handleSingleModelImage(body, modelStr, { wantsStream, binaryOutput, preferredConnectionId, apiKeyInfo } = {}) {
+async function handleSingleModelImage(body, modelStr, { wantsStream, binaryOutput, preferredConnectionId, apiKeyInfo, apiKey, endpoint } = {}) {
   const modelInfo = await getModelInfo(modelStr);
   if (!modelInfo.provider) return errorResponse(HTTP_STATUS.BAD_REQUEST, "Invalid model format");
 
@@ -132,6 +161,17 @@ async function handleSingleModelImage(body, modelStr, { wantsStream, binaryOutpu
 
     const refreshedCredentials = await checkAndRefreshToken(provider, credentials);
 
+    // Skip accounts the adapter knows cannot generate images (e.g. ChatGPT Free on codex)
+    // without locking them: they stay usable for chat.
+    const adapter = getImageAdapter(provider);
+    if (adapter?.canUseCredentials && !adapter.canUseCredentials(refreshedCredentials)) {
+      log.info("IMAGE", `[${provider}/${model}] skip connection ${credentials.connectionId.slice(0, 8)}: plan not entitled to image generation`);
+      excludeConnectionIds.add(credentials.connectionId);
+      lastError = lastError || "No account entitled to image generation (ChatGPT Free plans are not supported)";
+      lastStatus = lastStatus || HTTP_STATUS.FORBIDDEN;
+      continue;
+    }
+
     const result = await handleImageGenerationCore({
       body,
       modelInfo: { provider, model },
@@ -144,6 +184,16 @@ async function handleSingleModelImage(body, modelStr, { wantsStream, binaryOutpu
           refreshToken: newCreds.refreshToken,
           providerSpecificData: newCreds.providerSpecificData,
           testStatus: "active"
+        });
+      },
+      onUsage: (usage) => {
+        recordImageRequestUsage({
+          provider,
+          model,
+          connectionId: credentials.connectionId,
+          apiKey,
+          endpoint,
+          usage,
         });
       },
       onRequestSuccess: async () => {

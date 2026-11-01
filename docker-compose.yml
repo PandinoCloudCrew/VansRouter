@@ -25,6 +25,8 @@ services:
     env_file:
       - .env
     environment:
+      # Runtime JSON ceiling (20 MiB), separate from Next.js rewrite buffering.
+      VANSROUTER_MAX_BODY_BYTES: ${VANSROUTER_MAX_BODY_BYTES:-20971520}
       DATA_DIR: /app/data
       PORT: "20128"
       HOSTNAME: "0.0.0.0"
@@ -47,7 +49,7 @@ services:
     container_name: headroom
     restart: unless-stopped
     ports:
-      - "${HEADROOM_PORT:-8787}:8787"
+      - "127.0.0.1:${HEADROOM_PORT:-8787}:8787"
 
 volumes:
   9router-data:

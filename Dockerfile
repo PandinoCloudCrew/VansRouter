@@ -1,10 +1,13 @@
 # syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
+ARG NODE_IMAGE=node:22.23.4-alpine
+ARG ALPINE_MIRROR=dl-cdn.alpinelinux.org
+ARG NPM_REGISTRY=https://registry.npmjs.org/
 ARG APP_VERSION=unknown
 ARG VCS_REF=unknown
 
 # Step 1: Build the Next.js app on the native host CPU (BUILDPLATFORM).
 # Running Webpack and bundling under native architecture is ~20x faster than QEMU emulation.
-FROM --platform=$BUILDPLATFORM node:22-alpine@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85 AS builder
+FROM --platform=$BUILDPLATFORM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS builder
 WORKDIR /app
 
 ARG NPM_VERSION=11.20.0
@@ -34,7 +37,7 @@ RUN pnpm run build && \
 
 # Step 2: Stage target-native runtime modules (better-sqlite3) for the TARGETPLATFORM.
 # The target binary is checksum-pinned and avoids running heavy Next.js build or extracting 500+ unrelated packages under QEMU.
-FROM node:22-alpine@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85 AS native-deps
+FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS native-deps
 ARG TARGETARCH
 WORKDIR /app
 
@@ -74,12 +77,13 @@ RUN apk add --no-cache curl ca-certificates && \
 RUN --mount=type=cache,target=/go/pkg/mod \
   --mount=type=cache,target=/root/.cache/go-build \
   go get golang.org/x/crypto@v0.56.0 golang.org/x/image@v0.45.0 \
-    github.com/insomniacslk/dhcp@v0.0.0-20260719225207-c76316d4aa82 && \
+    github.com/insomniacslk/dhcp@v0.0.0-20260719225207-c76316d4aa82 \
+    ./cmd/tailscale ./cmd/tailscaled && \
   CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} \
   go build -trimpath -ldflags="-s -w -X tailscale.com/version.longStamp=${TAILSCALE_VERSION}-vansrouter-security.1 -X tailscale.com/version.shortStamp=${TAILSCALE_VERSION}" \
     -o /out/ ./cmd/tailscale ./cmd/tailscaled
 
-FROM node:22-alpine@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85 AS runner
+FROM node:22.23.4-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS runner
 ARG APP_VERSION
 ARG VCS_REF
 WORKDIR /app
@@ -134,7 +138,8 @@ RUN mkdir -p /app/data /app/data-home && \
 
 # Tailscale Funnel requires CAP_NET_ADMIN for TUN mode; keep su-exec for dropping privileges.
 # When using host socket mode (TAILSCALE_USE_HOST_SOCKET=true), no extra capability is needed.
-RUN apk --no-cache add su-exec ip6tables iptables
+# ffmpeg converts audio for the Codex OAuth transcription lane.
+RUN apk --no-cache add su-exec ip6tables iptables ffmpeg
 COPY docker/migrate-legacy-volume.cjs /usr/local/bin/migrate-legacy-volume.cjs
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

@@ -65,7 +65,29 @@ describe("release hardening contracts", () => {
     expect(workflow).toContain("scripts/inspect-image-digest.cjs");
     expect(workflow).toContain("scripts/npm-integrity.cjs");
     expect(workflow).not.toContain("get_digest()");
-    expect(workflow).toContain("push-to-registry: true");
+    // The public package must only receive promoted digests. The build pushes
+    // the index by digest without a tag, and the attestation lives in GitHub's
+    // store so no public sha256-<digest> tag is created.
+    expect(workflow).toContain("push-by-digest=true");
+    expect(workflow).toContain('name=${{ env.GHCR_IMAGE }},push-by-digest=true');
+    expect(workflow).toContain('source_image="${GHCR_IMAGE}@${STAGING_DIGEST}"');
+    expect(workflow).toContain("push-to-registry: false");
+    expect(workflow).not.toContain("GHCR_STAGING_IMAGE");
+  });
+
+  it("waits long enough for the registry to list a freshly published version", () => {
+    const workflow = read(".github/workflows/release.yml");
+    // npm accepts a publish before the version becomes readable ("being
+    // processed"); the delay has been observed at ~9 minutes, so the original
+    // 12 attempts x 5s window failed a release that had actually published.
+    const attempts = Number((workflow.match(/attempts=(\d+)/) || [])[1]);
+    const delay = Number((workflow.match(/delay=(\d+)/) || [])[1]);
+    expect(attempts).toBeGreaterThan(0);
+    expect(delay).toBeGreaterThan(0);
+    expect(attempts * delay).toBeGreaterThanOrEqual(600);
+    const job = workflow.slice(workflow.indexOf("  publish-npm:"), workflow.indexOf("  promote-ghcr:"));
+    const timeout = Number((job.match(/timeout-minutes:\s*(\d+)/) || [])[1]);
+    expect(timeout * 60).toBeGreaterThan(attempts * delay);
   });
 
   it("keeps Docker dependency installation locked and externally downloaded binaries verified", () => {

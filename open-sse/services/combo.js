@@ -6,7 +6,25 @@ import { checkFallbackError, formatRetryAfter } from "./accountFallback.js";
 import { unavailableResponse } from "../utils/error.js";
 import { DEFAULT_COMBO_TARGET_TIMEOUT_MS } from "../config/runtimeConfig.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
+import { parseModel } from "./model.js";
 import { extractTextContent } from "../translator/formats/gemini.js";
+import { peekStreamForContent, reconstructStream, isNoRetryFinish } from "./emptyFailover.js";
+
+// Peek a 2xx combo response for real content. Returns null for non-SSE responses (leave
+// them untouched). For SSE, returns { outcome: "content"|"empty", finishReason, response }
+// where `response` is a faithful replay of the original stream (head buffer + live reader).
+async function peekComboResponse(result, log) {
+  const ct = (result.headers.get("content-type") || "").toLowerCase();
+  if (!result.body || !ct.includes("text/event-stream")) return null;
+  const peeked = await peekStreamForContent(result.body);
+  const response = new Response(reconstructStream(peeked.head, peeked.reader, peeked.pendingRead), {
+    status: result.status,
+    statusText: result.statusText,
+    headers: result.headers,
+  });
+  return { outcome: peeked.outcome, finishReason: peeked.finishReason, timedOut: peeked.timedOut, response };
+}
+
 
 // Strip "combo/" prefix from model string (e.g. "combo/coding-stack" → "coding-stack")
 export function stripComboPrefix(modelStr) {
@@ -272,12 +290,33 @@ export function resetComboRotation(comboName) {
   else comboRotationState.clear();
 }
 
-/**
- * Get combo models from combos data
- * @param {string} modelStr - Model string to check
- * @param {Array|Object} combosData - Array of combos or object with combos
- * @returns {string[]|null} Array of models or null if not a combo
- */
+/** Detect successful JSON responses that contain no usable assistant output. */
+export function isZeroContentResponse(data) {
+  if (!data || typeof data !== "object") return false;
+
+  if (Array.isArray(data.choices)) {
+    const choice = data.choices[0];
+    if (!choice) return true;
+    const message = choice.message || choice.delta || {};
+    const hasContent = typeof message.content === "string"
+      ? message.content.trim().length > 0
+      : Array.isArray(message.content) && message.content.length > 0;
+    const hasTools = (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) || Boolean(message.function_call);
+    const hasReasoning = typeof message.reasoning_content === "string" && message.reasoning_content.trim().length > 0;
+    return !hasContent && !hasTools && !hasReasoning
+      && !["stop", "length", "tool_calls", "function_call"].includes(choice.finish_reason);
+  }
+
+  if (Array.isArray(data.content)) {
+    const hasContent = data.content.some((block) =>
+      (block?.type === "text" && typeof block.text === "string" && block.text.trim())
+      || block?.type === "tool_use");
+    return !hasContent && (!data.stop_reason || data.stop_reason === "in_progress" || data.stop_reason === "incomplete");
+  }
+
+  return false;
+}
+
 export function getComboModelsFromData(modelStr, combosData) {
   // Don't check if it's in provider/model format
   if (modelStr.includes("/")) return null;
@@ -354,6 +393,7 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
   let lastError = null;
   let earliestRetryAfter = null;
   let lastStatus = null;
+  let requestScopedResult = null;
 
   for (let i = 0; i < rotatedModels.length; i++) {
     const modelStr = rotatedModels[i];
@@ -415,10 +455,72 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
         }
       }
 
-      // Success (2xx) - return response
+      // Success (2xx). A 2xx is necessary but NOT sufficient: Gemini aborts (e.g.
+      // MALFORMED_FUNCTION_CALL) still return 200 and stream empty content, which would
+      // otherwise be delivered as a successful empty answer with no failover.
+      // Peek the stream for real content before committing to this candidate.
       if (result.ok) {
-        log.info("COMBO", `Model ${modelStr} succeeded`);
-        return result;
+        let peeked = null;
+        try {
+          peeked = await peekComboResponse(result, log);
+        } catch (peekErr) {
+          // peekStreamForContent is written not to throw; if reconstruction/Response
+          // construction ever does, result.body is already locked by getReader() and can no
+          // longer be streamed. Returning `result` would hand the client a locked, unreadable
+          // body. Degrade to a clean, valid (empty) SSE stream instead.
+          log.warn("COMBO", `empty-peek error on ${modelStr}, returning empty SSE: ${peekErr?.message || peekErr}`);
+          return new Response("data: [DONE]\n\n", {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          });
+        }
+
+        if (!peeked) {
+          // Non-streaming (or non-SSE) response — not this peek's job. The zero-content
+          // JSON check still applies on a non-final seat.
+          const isLastModel = i === rotatedModels.length - 1;
+          if (!isLastModel) {
+            const contentType = result.headers?.get?.("content-type") || "";
+            if (contentType.includes("application/json")) {
+              try {
+                const peekBody = await result.clone().json();
+                if (isZeroContentResponse(peekBody)) {
+                  log.warn("COMBO", `Model ${modelStr} returned HTTP 200 with zero usable content, falling back to next model`);
+                  lastError = "Zero usable content";
+                  lastStatus = 200;
+                  continue;
+                }
+              } catch {
+                // Ignore JSON parse errors
+              }
+            }
+          }
+
+          log.info("COMBO", `Model ${modelStr} succeeded`);
+          return result;
+        }
+
+        if (peeked.outcome === "content") {
+          log.info("COMBO", `Model ${modelStr} succeeded${peeked.timedOut ? " (peek deadline; committed)" : ""}`);
+          return peeked.response;
+        }
+
+        // Empty generation. Fall through to the next candidate unless this is a legitimately
+        // empty class (content filter) or the last candidate — in which case return the
+        // (empty) response as-is, preserving prior behaviour rather than manufacturing a 5xx.
+        const reasonLabel = peeked.finishReason || "no-content";
+        const isLast = i === rotatedModels.length - 1;
+        if (isNoRetryFinish(peeked.finishReason) || isLast) {
+          log.warn("COMBO", `Model ${modelStr} returned empty (${reasonLabel}) — ${isNoRetryFinish(peeked.finishReason) ? "no-retry class" : "last candidate"}, returning as-is`);
+          return peeked.response;
+        }
+
+        log.warn("COMBO", `Model ${modelStr} returned empty (${reasonLabel}) — falling through to next candidate`);
+        // Drain/close the discarded stream in the background so its usage logging still runs.
+        peeked.response.body?.cancel?.().catch(() => {});
+        lastError = `empty generation (${reasonLabel})`;
+        if (!lastStatus) lastStatus = 502;
+        continue;
       }
 
       // Extract error info from response
@@ -443,11 +545,27 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
       }
 
       // Check if should fallback to next model
-      const { shouldFallback, cooldownMs } = checkFallbackError(result.status, errorText);
+      const { provider } = parseModel(modelStr);
+      const { shouldFallback, cooldownMs, requestScoped } = checkFallbackError(result.status, errorText, 0, provider);
 
-      if (!shouldFallback) {
+      if (!shouldFallback && !requestScoped) {
         log.warn("COMBO", `Model ${modelStr} failed (no fallback)`, { status: result.status });
         return result;
+      }
+
+      // A request-scoped 4xx (validation failure, unsupported parameter, context
+      // overflow) says this member cannot serve THIS request — not that the
+      // credential is unhealthy. Members run on different providers with
+      // different validation, so the next member may well serve it. Advance
+      // without a cooldown, and without waiting: there is nothing to recover.
+      // checkFallbackError() reports no account fallback here on purpose (a
+      // request-scoped fault must not evict a healthy account from rotation).
+      if (requestScoped) {
+        log.warn("COMBO", `Model ${modelStr} rejected the request (${result.status}), trying next`, { status: result.status });
+        lastError = errorText || String(result.status);
+        if (!lastStatus) lastStatus = result.status;
+        if (!requestScopedResult) requestScopedResult = result;
+        continue;
       }
 
       // For transient errors (503/502/504), wait for cooldown before falling through
@@ -469,6 +587,16 @@ export async function handleComboChat({ body, models, handleSingleModel, log, co
       if (!lastStatus) lastStatus = 500;
       log.warn("COMBO", `Model ${modelStr} threw error, trying next`, { error: lastError });
     }
+  }
+
+  // At least one member rejected the request itself. Hand back that member's own
+  // response — status and body — rather than the synthesized envelope below: the
+  // synthesized one reaches the client as a 200 carrying an error object, which
+  // reads as an empty success, and it buries the member that named the real cause.
+  // This is also what the caller saw before combos advanced on these errors.
+  if (requestScopedResult) {
+    log.warn("COMBO", `No model served the request; returning the first request-scoped failure (${requestScopedResult.status})`);
+    return requestScopedResult;
   }
 
   // All models failed

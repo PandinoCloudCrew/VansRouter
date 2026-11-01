@@ -34,6 +34,8 @@ export default function TokenSaverClient() {
   const [writingPluginErrors, setWritingPluginErrors] = useState({});
   const [codeAware, setCodeAware] = useState(false);
   const [kompress, setKompress] = useState(true);
+  const [customPromptEnabled, setCustomPromptEnabled] = useState(false);
+  const [customPrompt, setCustomPrompt] = useState("");
   const [pxpipeEnabled, setPxpipeEnabled] = useState(false);
   const [guards, setGuards] = useState({
     loopGuard: true,
@@ -180,6 +182,15 @@ export default function TokenSaverClient() {
     }
   };
 
+  const handleCustomPromptEnabled = (value) => {
+    setCustomPromptEnabled(value);
+    patchSetting({ customPromptEnabled: value });
+  };
+
+  const handleCustomPromptBlur = () => {
+    patchSetting({ customPrompt });
+  };
+
   const togglePendingExtra = (extra) => {
     setPendingExtras((current) =>
       current.includes(extra)
@@ -247,6 +258,8 @@ export default function TokenSaverClient() {
           steEnabled: data.steEnabled !== false,
           actionFirstEnabled: data.actionFirstEnabled !== false,
         });
+        setCustomPromptEnabled(!!data.customPromptEnabled);
+        setCustomPrompt(data.customPrompt || "");
         setPxpipeEnabled(!!data.pxpipeEnabled);
         if (typeof data.pxpipeMinChars === "number") setPxpipeMinChars(data.pxpipeMinChars);
         setGuards({
@@ -341,6 +354,11 @@ export default function TokenSaverClient() {
         writingPluginSaving={writingPluginSaving}
         writingPluginErrors={writingPluginErrors}
         handleWritingPluginEnabled={handleWritingPluginEnabled}
+        customPromptEnabled={customPromptEnabled}
+        customPrompt={customPrompt}
+        setCustomPrompt={setCustomPrompt}
+        handleCustomPromptEnabled={handleCustomPromptEnabled}
+        handleCustomPromptBlur={handleCustomPromptBlur}
         pxpipeChipClass={pxpipeChipClass}
         pxpipeStatusLabel={pxpipeStatusLabel}
         setShowPxpipeModal={setShowPxpipeModal}

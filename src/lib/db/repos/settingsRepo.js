@@ -48,6 +48,9 @@ const DEFAULT_SETTINGS = {
   plainEnglishEnabled: true,
   steEnabled: true,
   actionFirstEnabled: true,
+  // User-authored system prompt, injected independently of the built-in savers.
+  customPromptEnabled: false,
+  customPrompt: "",
 };
 
 async function readRaw() {

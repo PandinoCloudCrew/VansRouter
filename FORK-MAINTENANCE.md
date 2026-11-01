@@ -9,6 +9,62 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Upstream synchronization and payload limit, 2026-11-01
+
+The fork imports upstream v0.91.90 (`4da89c6a`), 191 commits beyond its
+v0.91.61 base. Both package manifests and npm lockfile roots are 0.91.90.
+The merge retains independent PCC writing controls beside upstream custom
+system prompts, provider overrides, and the locally bundled Monaco editor.
+Monaco 0.57.0 changed its package exports; the sanitizer postinstall and local
+worker imports now use supported exports. The sanitizer bytes match installed
+DOMPurify. Node follows upstream's checksum-pinned 22.23.4 image. Existing npm
+and rebuilt Tailscale security patches remain. The Tailscale upgrade step now
+resolves both command packages before building to populate transitive sums.
+
+Upstream scope includes AWS Bedrock, Codex STT, System One, provider/model
+updates, Gemini schema handling, custom system prompts, Responses/tool fixes,
+and dashboard performance work. Upstream release entries below v0.91.90 in
+`CHANGELOG.md` retain the detailed shipped scope.
+
+Verification before publication:
+
+- macOS baseline: 4,164 passed, four failed, 121 skipped, one todo. Candidate:
+  5,145 passed, seven failed, 121 skipped, one todo. The baseline's two platform
+  header snapshots, temporary DATA_DIR guard, and SQLite webpack fixture still
+  fail. The three additional System One authentication/validation assertions
+  also fail on pristine upstream v0.91.90 with the same installed dependencies
+  (eight passed, three failed). The full suite is not green.
+- Focused final run: 124 tests passed in ten suites. A previous focused run
+  timed out importing the MiniMax test; its isolated rerun and final focused
+  run passed. HTTP/2 tests: two passed. Monaco version/sanitizer tests: two
+  passed. Undefined-variable and React hooks lint passed. Frozen pnpm install,
+  macOS production build, and Linux amd64/arm64 image builds passed.
+- A local arm64 container passed version/login, independent writing settings,
+  invalid boolean rejection, authenticated model discovery, mock chat dispatch,
+  streaming tool calls, 429 account fallback, single prompt injection, request
+  bypass, the reported payload size, SQLite integrity, npm/npx availability,
+  and Tailscale version. Published-image verification is recorded separately.
+
+Production's payload ceiling was changed from 15 MiB to 20 MiB, retaining image
+`0.91.61-writing.1` and volume `9router_9router-data`. Health/readiness returned
+200, SQLite integrity was `ok`, and authenticated model discovery returned 200
+with 56 models. Exact 17,837,120-byte and 20 MiB requests reached authentication;
+20 MiB plus one byte returned 413. A SQLite online backup and the previous
+Compose file remain in `/home/pcc/builds/vansrouter-20261101-payload/` on srv0.
+The separate deployment checkout records this setting in commit `d7bfcee`.
+
+The failing client session contained 23 inline screenshots across five tool
+outputs: 17,428,686 data-URL bytes (16.62 MiB). Their timestamps match outgoing
+body growth from 3,050,621 to 13,805,585 bytes before the reported
+17,837,120-byte rejection. This establishes accumulated client screenshot
+history as the growth source. The byte limit runs before token savers; RTK
+also skips bodies over its default 512 KiB threshold. More screenshots can
+exceed 20 MiB; reduce screenshot size/frequency or start a fresh session.
+
+Evidence remains in `/tmp/vansrouter-sync-20261101/`. Live external providers,
+full human OIDC login, browser UI, and full desktop runtimes were not tested.
+No upstream npm package or upstream release tag is created by this fork sync.
+
 ## Production deployment, 2026-10-02
 
 After operator promotion and deployment authorization, srv0 deployed:

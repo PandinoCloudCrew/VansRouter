@@ -193,3 +193,29 @@ node cli/scripts/validate-release.cjs vX.Y.Z --pretag
 ```
 
 Workflow: `.github/workflows/release.yml`
+
+## JSON request size
+
+Compose sets `VANSROUTER_MAX_BODY_BYTES` to `20971520` (20 MiB) at runtime.
+Override it in `.env`, then recreate the container. `NINEROUTER_MAX_BODY_BYTES`
+is the legacy alias; `VANSROUTER_MAX_BODY_BYTES` takes precedence.
+
+The JSON reader rejects larger requests before translation or token compression.
+Next.js rewrite buffering is a separate build-time setting
+(`NINEROUTER_PROXY_CLIENT_MAX_BODY_SIZE`, default `128mb`). Changing that buffer
+does not raise the JSON reader's ceiling.
+
+Long client sessions can resend accumulated conversation history, tool outputs,
+and inline images. A higher limit allows larger requests but does not compact
+the client's history. RTK skips bodies above `NINEROUTER_RTK_MAX_BYTES`
+(default 512 KiB) to avoid blocking the event loop. Compact the session or start
+a new session when history grows; do not silently discard conversation content.
+
+On 2026-11-01, a failing Codex session retained 23 inline screenshots in five
+tool results: 17,428,686 bytes of data URLs (16.62 MiB) before the rest of the
+request. Server metadata showed corresponding outgoing body growth from
+3,050,621 to 13,805,585 bytes before the client reported a 17,837,120-byte
+rejection at the previous 15 MiB ceiling. This was accumulated client image
+history; increasing the ceiling does not remove those images. Use fewer
+screenshots, resize/compress screenshots before including them, or start a
+fresh session when image history is no longer needed.

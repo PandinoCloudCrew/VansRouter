@@ -7,7 +7,7 @@ import { COLORS } from "../utils/stream.js";
 import { createStreamController } from "../utils/streamHandler.js";
 import { refreshWithRetry } from "../services/tokenRefresh.js";
 import { createRequestLogger } from "../utils/requestLogger.js";
-import { extractThinking } from "../translator/concerns/thinkingUnified.js";
+import { extractThinking, stripThinkingSuffix } from "../translator/concerns/thinkingUnified.js";
 import { getModelTargetFormat, getModelSupportedFormats, getModelStrip, getModelUpstreamId, getModelType, PROVIDER_ID_TO_ALIAS } from "../config/providerModels.js";
 import { PROVIDERS } from "../config/providers.js";
 import { createErrorResult, parseUpstreamError, formatProviderError } from "../utils/error.js";
@@ -36,6 +36,7 @@ import { injectActionFirst } from "../rtk/actionFirst.js";
 import { injectWritingCompatibility } from "../rtk/writingCompatibility.js";
 import { injectSystemPrompt } from "../rtk/systemInject.js";
 import { injectTerminationPrompt, injectToolProtocolPrompt } from "../rtk/terminationPrompt.js";
+import { injectCustomPrompt } from "../rtk/customPrompt.js";
 import { compressMessages, formatRtkLog } from "../rtk/index.js";
 import { compressWithHeadroom, formatHeadroomLog, formatHeadroomSizeLog, isHeadroomPhantomSavings } from "../rtk/headroom.js";
 import { getCapabilitiesForModel } from "../providers/capabilities.js";
@@ -133,7 +134,7 @@ export function stripContinuityFields(body) {
   return body;
 }
 
-export async function handleChatCore({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, apiKeyInfo = null, apiKeyName = null, ccFilterNaming, rtkEnabled, clientBodyBytes, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs = 3000, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, plainEnglishEnabled = true, steEnabled = true, actionFirstEnabled = true, pxpipeEnabled = false, pxpipeMinChars = 1000, pxpipeTimeoutMs = 10000, pxpipeTransform = "png", onPxpipeEvent = null, sourceFormatOverride, providerThinking, clientSignal, loopGuardEnabled = true, systemPrompt = null, clientModelId = null, resolveProxyConfig = null, providerOverrides = null }) {
+export async function handleChatCore({ body, modelInfo, credentials, log, onCredentialsRefreshed, onRequestSuccess, onDisconnect, clientRawRequest, connectionId, userAgent, apiKey, apiKeyInfo = null, apiKeyName = null, ccFilterNaming, rtkEnabled, clientBodyBytes, headroomEnabled, headroomUrl, headroomCompressUserMessages, headroomTimeoutMs = 3000, cavemanEnabled, cavemanLevel, ponytailEnabled, ponytailLevel, plainEnglishEnabled = true, steEnabled = true, actionFirstEnabled = true, customPromptEnabled, customPrompt, pxpipeEnabled = false, pxpipeMinChars = 1000, pxpipeTimeoutMs = 10000, pxpipeTransform = "png", onPxpipeEvent = null, sourceFormatOverride, providerThinking, clientSignal, loopGuardEnabled = true, systemPrompt = null, clientModelId = null, resolveProxyConfig = null, providerOverrides = null }) {
   const { provider, model, accountCount = 0 } = modelInfo;
   const requestStartTime = Date.now();
 
@@ -152,7 +153,16 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   // sourceFormat-matched transport if that format is declared (opencode-go models
   // differ — kimi/glm only do /chat/completions). Undeclared models keep the
   // upstream default (use the transport), preserving behavior for glm/deepseek/...
-  const useTransport = (!supportedFormats || supportedFormats.includes(sourceFormat)) ? runtimeTransport : null;
+  // When the client's wire format is NOT among the model's supportedFormats, fall
+  // back to the transport for the model's declared targetFormat so the URL always
+  // matches the translated body. Without this, a Responses-only model (e.g. Muse
+  // Spark: supportedFormats ["openai-responses"]) requested by an OpenAI client is
+  // translated to the Responses body (`input`) yet POSTed to the default Chat
+  // Completions URL, and upstream rejects it: "unknown parameter `input`".
+  const modelTargetTransport = modelTargetFormat ? resolveTransport(provider, modelTargetFormat) : null;
+  const useTransport = (!supportedFormats || supportedFormats.includes(sourceFormat))
+    ? runtimeTransport
+    : modelTargetTransport;
   // A source-format-matched endpoint keeps the request lossless. Prefer it
   // over a model-level targetFormat, which is only the fallback for clients
   // whose wire format has no supported transport (for example MiniMax-M3:
@@ -161,7 +171,6 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   const targetFormat = useTransport?.format || modelTargetFormat || getTargetFormat(provider, credentials);
   if (useTransport && credentials) credentials.runtimeTransport = useTransport;
   const stripList = getModelStrip(alias, model);
-  const upstreamModel = getModelUpstreamId(alias, model);
 
   // Inject provider-level thinking config override (only if client hasn't set)
   // on/off → extended type (body.thinking), none/low/medium/high → effort type (body.reasoning_effort)
@@ -170,15 +179,20 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     const caps = getCapabilitiesForModel(provider, model);
     if (caps?.reasoning) {
       const mode = providerThinking.mode;
-      if (mode === "on" && !body.thinking) {
-        body = { ...body, thinking: { type: "enabled", budget_tokens: 10000 } };
-      } else if (mode === "off" && !body.thinking) {
-        if (caps.thinkingCanDisable !== false) body = { ...body, thinking: { type: "disabled" } };
+      if (mode === "on" && !body.thinking && !body.reasoning_effort) {
+        body = provider === "opencode"
+          ? { ...body, reasoning_effort: "medium" }
+          : { ...body, thinking: { type: "enabled", budget_tokens: 10000 } };
+      } else if (mode === "off" && !body.thinking && !body.reasoning_effort) {
+        if (provider === "opencode") body = { ...body, reasoning_effort: "none" };
+        else if (caps.thinkingCanDisable !== false) body = { ...body, thinking: { type: "disabled" } };
       } else if (!body.reasoning_effort) {
         body = { ...body, reasoning_effort: mode };
       }
     }
   }
+
+  const upstreamModel = getModelUpstreamId(alias, model, body);
 
   // Per-request opt-out: client can bypass all token savers via header
   const tokenSaverEnabled = clientRawRequest?.headers?.[TOKEN_SAVER_HEADER]?.toLowerCase() !== "off";
@@ -255,9 +269,9 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
   let toolNameMap;
   if (passthrough) {
     log?.debug?.("PASSTHROUGH", `${clientTool} → ${provider} | native lossless`);
-    translatedBody = { ...body, model: upstreamModel };
+    translatedBody = { ...body, model: stripThinkingSuffix(upstreamModel) };
     // Normalize newer Cowork/CC beta shapes (adaptive thinking, mid-conversation system) the API rejects
-    if (clientTool === "claude") normalizeClaudePassthrough(translatedBody, upstreamModel);
+    if (clientTool === "claude") normalizeClaudePassthrough(translatedBody, stripThinkingSuffix(upstreamModel));
   } else {
     translatedBody = translateRequest(sourceFormat, targetFormat, upstreamModel, body, upstreamStream, credentials, provider, reqLogger, stripList, connectionId, clientTool);
     if (!translatedBody) {
@@ -266,7 +280,7 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
     }
     toolNameMap = translatedBody._toolNameMap;
     delete translatedBody._toolNameMap;
-    translatedBody.model = upstreamModel;
+    translatedBody.model = stripThinkingSuffix(upstreamModel);
   }
 
   // NVIDIA NIM-hosted Kimi-k2.6/k2.7: ensure upstream body also has stream:false
@@ -397,16 +411,22 @@ export async function handleChatCore({ body, modelInfo, credentials, log, onCred
       const mode = providerThinking.mode;
       if (mode === "off") {
         translatedBody.reasoning_effort = "none";
-        if (caps.thinkingCanDisable !== false) translatedBody.thinking = { type: "disabled" };
+        if (provider !== "opencode" && caps.thinkingCanDisable !== false) translatedBody.thinking = { type: "disabled" };
         log?.debug?.("THINKING", `${provider}/${model} | disabled`);
       } else if (mode === "on") {
-        translatedBody.thinking = { type: "enabled", budget_tokens: 10000 };
-        log?.debug?.("THINKING", `${provider}/${model} | enabled (10k budget)`);
+        if (provider === "opencode") translatedBody.reasoning_effort = "medium";
+        else translatedBody.thinking = { type: "enabled", budget_tokens: 10000 };
+        log?.debug?.("THINKING", provider === "opencode" ? `${provider}/${model} | effort=medium` : `${provider}/${model} | enabled (10k budget)`);
       } else {
         translatedBody.reasoning_effort = mode;
         log?.debug?.("THINKING", `${provider}/${model} | effort=${mode}`);
       }
     }
+  }
+
+  // Custom prompt: user-authored instruction, independent of the savers above
+  if (customPromptEnabled && injectCustomPrompt(translatedBody, finalFormat, customPrompt)) {
+    log?.debug?.("CUSTOMPROMPT", `${customPrompt.trim().length}c | ${finalFormat}`);
   }
 
   // PXPIPE: image bulky context (Claude-format bodies only), last saver before dispatch
@@ -676,9 +696,12 @@ const { isContentFilter } = checkFallbackError(statusCode, message);
     return { success: true, response: sseResponse };
   }
 
-  // Provider forced streaming but client wants JSON
-  if (!clientRequestedStreaming && providerRequiresStreaming) {
-    const result = await handleForcedSSEToJson({ ...sharedCtx, providerResponse, sourceFormat, toolNameMap, trackDone, appendLog });
+  // Provider forced streaming but client wants JSON. The Responses wire always
+  // streams upstream (openaiToOpenAIResponsesRequest pins stream:true), so a
+  // non-stream OpenAI/native client behind a Responses upstream must also take
+  // this path — handleForcedSSEToJson returns null when the body is not SSE.
+  if (!clientRequestedStreaming && (providerRequiresStreaming || providerResponseFormat === FORMATS.OPENAI_RESPONSES)) {
+    const result = await handleForcedSSEToJson({ ...sharedCtx, providerResponse, sourceFormat, targetFormat: providerResponseFormat, toolNameMap, trackDone, appendLog });
     if (result) { streamController.handleComplete(); return result; }
   }
 

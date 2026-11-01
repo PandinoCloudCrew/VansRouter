@@ -16,7 +16,7 @@ const nextConfig = {
   // Keep `open` external: it derives its own directory from import.meta.url.
   // Bundling it rewrites that URL to the build machine's path and breaks
   // Windows/macOS OAuth flows at module load time.
-  serverExternalPackages: ["better-sqlite3", "sql.js", "node:sqlite", "bun:sqlite", "open", "dompurify", "chalk"],
+  serverExternalPackages: ["better-sqlite3", "sql.js", "node:sqlite", "bun:sqlite", "open", "dompurify", "chalk", "@aws-sdk/credential-providers"],
   turbopack: {
     root: tracingRoot
   },
@@ -91,6 +91,10 @@ const nextConfig = {
       {
         source: "/responses",
         destination: "/api/v1/responses"
+      },
+      {
+        source: "/systemone",
+        destination: "/api/v1/systemone"
       },
       {
         source: "/v1beta/:path*",

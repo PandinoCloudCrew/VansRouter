@@ -5,5 +5,5 @@ const path = require("node:path");
 // Keep a separate instance: Monaco installs hooks that must not affect the changelog.
 fs.copyFileSync(
   path.join(path.dirname(require.resolve("dompurify")), "purify.es.mjs"),
-  path.join(path.dirname(require.resolve("monaco-editor/package.json")), "esm/vs/base/browser/dompurify/dompurify.js")
+  path.join(path.dirname(require.resolve("monaco-editor")), "../../esm/vs/base/browser/dompurify/dompurify.js")
 );
