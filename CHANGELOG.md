@@ -1,5 +1,53 @@
 # v0.91.90 (2026-10-31)
 
+## PCC fork image 0.91.90-writing.2 (2026-11-01)
+
+### Dependency security updates
+
+- Update Next.js, `@next/env` and ESLint's Next config to 16.4.3, DOMPurify
+  to 3.4.17, and app/CLI node-forge to 1.4.2. Refresh compatible app and CLI
+  dependency locks. Next resolves Sharp 0.35.5, PostCSS 8.5.23,
+  source-map-js 1.2.2, nanoid 3.3.20 and baseline-browser-mapping 2.11.34.
+- Docker uses npm 12.2.1 on pinned Node 22.23.4 and rebuilds Tailscale with
+  checksum-pinned Go 1.26.9. Retain media support, native SQLite pins and the
+  persistent data volume.
+
+### Publication and verification
+
+- Publish source `194fbe31` as Linux amd64/arm64 staging image
+  `registry.pcc.fyi/pcc-staging/vansrouter:0.91.90-writing.2`, digest
+  `sha256:a4d6ad09b958817889be4efd49c118e290a4a0a5dbb7312bf5c32938613955a1`.
+  Verify registry metadata, forced platform pulls, SLSA provenance and SPDX
+  SBOM attestations. Application inventory contains 211 components; image
+  inventories contain 1,902 amd64 and 1,899 arm64 CycloneDX components.
+- Both published platforms pass health/readiness/version/login, independent
+  writing settings and validation, authenticated models, mock routing and
+  streaming tools, 429 fallback, prompt injection/bypass, the reported payload,
+  SQLite integrity, WAV-to-24-kHz-PCM conversion, npm install/ci/npx and
+  Tailscale startup. No live-provider or browser UI checks were performed.
+- Full macOS suite before/after: 5,145 passed, the same seven failures,
+  121 skipped, one todo. Focused suite: 124 passed; HTTP/2: two passed.
+  Frozen installation, lock consistency and production/multiarch builds pass.
+
+### Findings and follow-up limit
+
+- amd64 Trivy findings fall from 137 to 26: 13 high, 13 medium, zero critical
+  or low. All pages were compared by scanner/component/advisory: 111 rows
+  removed, none added. This differs from the separate Grype baseline of 190.
+- writing.2 tag-level Grype/image and arm64 platform scans failed. Their empty
+  results are not clearance. Alpine/media findings without available fixes
+  remain unresolved. No finding or policy was suppressed.
+- Follow-up source `aa144542` updates Go to 1.26.10, `x/net` to 0.62.0 and
+  required `x/crypto` to 0.58.0. Add a locked npm runtime graph with undici
+  6.29.1, ip-address 10.7.5, glob 14.0.2 and minimatch 11.0.1. Both local
+  containers pass runtime and package-content checks. Dependency traversal
+  excludes OpenPGP imports on both platforms.
+- The writing.3 upload failed with HTTP 507, `Repository storage quota exceeded`.
+  That version is not published or registry-scanned; writing.2 is the latest
+  published staging image. Production retains v0.91.61 with the verified
+  20 MiB setting. Scan IDs, evidence and the quota blocker are recorded in
+  `FORK-MAINTENANCE.md`. No upstream tag or npm package was published.
+
 ## PCC fork image 0.91.90-writing.1 (2026-11-01)
 
 ### Upstream and fork compatibility
