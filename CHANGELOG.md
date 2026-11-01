@@ -1,5 +1,50 @@
 # v0.91.90 (2026-10-31)
 
+## PCC fork image 0.91.90-writing.1 (2026-11-01)
+
+### Upstream and fork compatibility
+
+- Merge `bbda7fe9` imports 191 upstream commits through v0.91.90 (`4da89c6a`),
+  including AWS Bedrock, Codex STT, System One, provider/model updates, custom
+  system prompts, Responses/tool fixes, Gemini schema handling, and dashboard
+  performance changes. Both package manifests and npm lockfile roots are 0.91.90.
+- Preserve independent Plain English, STE-inspired and Action-first controls
+  beside upstream custom prompts and provider overrides. Retain the patched
+  local Monaco editor. Update Monaco 0.57.0 export paths and populate Tailscale
+  transitive module sums before building. Follow upstream's pinned Node image;
+  retain the fork's npm/Tailscale security patch workflow.
+
+### Docker payloads
+
+- Compose defaults to 20 MiB through `VANSROUTER_MAX_BODY_BYTES`; document the
+  independent Next.js rewrite buffer and legacy `NINEROUTER_MAX_BODY_BYTES` alias.
+  srv0 now uses 20 MiB with the previous image and existing data volume.
+- Reproduce the exact 17,837,120-byte rejection at 15 MiB; verify acceptance at
+  20 MiB and rejection above it. Identify 23 retained inline screenshots
+  (17,428,686 data-URL bytes) as the client-session growth source. The limit
+  precedes token compression; RTK skips bodies above its default 512 KiB.
+
+### Publication and verification
+
+- Publish Linux amd64/arm64 image
+  `registry.pcc.fyi/pcc-staging/vansrouter:0.91.90-writing.1`, digest
+  `sha256:96db647561913bd0d78ea4cd44bb2b2da4c89485abb67944250542c28e7da027`.
+  Verify registry metadata, platform pulls, provenance and SBOM attestations.
+  Both platforms pass health/authentication, writing settings, mock dispatch,
+  streaming tools, 429 fallback, single prompt injection, bypass, payload,
+  SQLite, npm install/ci/npx and Tailscale startup checks.
+- Full macOS suite: 5,145 passed, seven failed, 121 skipped, one todo. Four
+  failure names match the pre-merge baseline; three System One failures also
+  reproduce on pristine upstream. Final focused suite: 124 passed. HTTP/2:
+  two passed. Lint, frozen install and production/image builds passed.
+- AK Grype reports 190 findings: six critical, 88 high, 91 medium, five low.
+  Critical findings flag Next.js 16.2.9 and Go stdlib 1.26.8. The separate image
+  scan failed. The new image remains in staging; production retains v0.91.61.
+  No upstream tag/npm release, live-provider test or browser UI test was performed.
+  Full evidence and scan IDs are in `FORK-MAINTENANCE.md`.
+
+## Upstream Release Notes
+
 This release merges the remaining useful open pull requests and adds a
 performance pass. v0.91.89 shipped the v0.5.112 sync; this release carries the
 follow-ups that landed after it.
@@ -795,6 +840,34 @@ sync forced, is in `.audit/sync-ledger-0.5.99-0.5.104.md`.
   overridable.
 - The Gemini Live STT WebSocket path was exercised only by its unit suite; no real
   Google Live session was run.
+
+# v0.91.61 (2026-10-02, PCC fork publication)
+
+## PCC fork image 0.91.61-writing.1
+
+- **Upstream synchronization**: Merge `0ea50568` imports 132 commits through
+  upstream `f3da996e`, including Muse/v1m/Hive and aggregator providers, GLM OAuth,
+  GPT-6.1 and Claude/Kiro models, CLI connection/profile tools, provider header
+  overrides, Gemini Live STT, Responses fixes and dashboard performance changes.
+- **Fork compatibility**: Preserved independent Plain English, STE-inspired and
+  Action-first controls together with upstream provider overrides. Retained the
+  patched Monaco sanitizer, runtime security pins, dependency versions and
+  persistent Docker volume configuration. Both npm lockfile roots track 0.91.61.
+- **Publication**: Published Linux amd64 and arm64 images to
+  `registry.pcc.fyi/pcc-staging/vansrouter:0.91.61-writing.1`, digest
+  `sha256:7a3506a6ff74430222af19f8ba7d9218f9f2ce75ebca2b24e460cfc436c9bcbb`.
+  Platform pulls, AK metadata, provenance and SBOM attestations were verified.
+  Both platforms passed health/authentication, writing settings, API-key access,
+  SQLite, npm/npx and Tailscale checks against the published digest.
+- **Validation**: Production build, both lint gates, 106 fork-focused tests and
+  two HTTP/2 tests passed. Linux amd64 passed 4,168 assertions but reported a
+  Vitest worker RPC timeout. Native arm64 passed 4,167 tests with the same Kimi
+  architecture snapshot failure as baseline; all 198 header tests passed on
+  amd64. macOS retained the baseline's four failure names. Full before/after
+  counts, inventories and limitations are recorded in `FORK-MAINTENANCE.md`.
+- **Limits**: AK scan triggering returned HTTP 403; security verification remains
+  pending. Browser UI, live providers and full desktop runtimes were not tested.
+  Production was not changed; no upstream release tag or npm package was published.
 
 # v0.91.51 (2026-09-28)
 
