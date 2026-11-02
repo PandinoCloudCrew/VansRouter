@@ -2,6 +2,14 @@ schema_version: 1
 subjects:
   - name: vansrouter
     kind: image
+    version: "0.91.90-writing.2"
+    ak:
+      instance: pcc
+      repository: pcc
+      artifact_path: v2/vansrouter/manifests/0.91.90-writing.2
+      digest: sha256:a4d6ad09b958817889be4efd49c118e290a4a0a5dbb7312bf5c32938613955a1
+  - name: vansrouter
+    kind: image
     version: "0.91.90-writing.1"
     ak:
       instance: pcc

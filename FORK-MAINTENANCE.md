@@ -9,6 +9,51 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Production deployment, 2026-11-02
+
+After operator promotion and deployment selection, srv0 uses:
+
+`registry.pcc.fyi/pcc/vansrouter:0.91.90-writing.2@sha256:a4d6ad09b958817889be4efd49c118e290a4a0a5dbb7312bf5c32938613955a1`
+
+Production registry metadata matches the tested staging index. A normal Linux
+amd64 pull succeeded before activation. Only the Compose image reference changed;
+the 20 MiB environment value and `9router_9router-data` volume remain intact.
+The deployment checkout records the pin and checks in commit `181badd`.
+The operator selected writing.2; writing.3 publication is no longer pursued in
+this rollout. No registry quota or security policy changed.
+
+The running container is healthy. Public health/readiness return 200 and version
+returns 0.91.90. SQLite integrity is `ok`; authenticated model discovery returns
+200 with 43 models, while an unauthenticated request returns 401. Exact
+17,837,120-byte and 20 MiB requests reach authentication; 20 MiB plus one byte
+returns 413. Public OIDC initiation redirects 307 to `https://sso.pandino.co`.
+Login-page CSS and JavaScript assets return 200. Full human OIDC sign-in and
+live external inference were not tested.
+
+Persisted settings and ID sets match the baseline: 12 API keys, nine provider
+connections, zero provider nodes and ten combos. The initial live model count
+was 56. An isolated old-image container using the online SQLite backup, no
+network and the internal skip-dynamic-fetch header returned 51 models versus
+43 on the new image with the same header. Fourteen IDs were removed, six added.
+The differences follow upstream's GPT-5.5 retirement and OpenCode free-model
+curation. This is a catalogue behavior change, not deleted provider/key/combo
+records. The isolated baseline container was removed after verification.
+
+Before activation, an integrity-checked SQLite online backup and full volume
+snapshot were uploaded to `r2:pcc-9router/backups/pcc-soho-srv0/`:
+
+- `predeploy-0.91.90-writing.2-20261102T004446Z.sqlite.gz`
+- `9router_9router-data-20261102T004446Z.tar.gz`
+
+Downloaded `rclone check` comparisons returned zero differences for both.
+Remote backups and `compose.previous.yaml` remain in
+`/home/pcc/builds/vansrouter-0.91.90-writing.2-20261102T004446Z/`.
+SQLite backup SHA-256:
+`3237d95e5f5362cc148ea31ffc40870cd679d1879d6d4deb8f88a6d870e486b8`.
+The previous v0.91.61-writing.1 image remains cached for rollback. No persisted
+Tailscale daemon overrides the bundled executable. Production promotion does
+not close the 26 recorded amd64 Trivy findings in this release.
+
 ## Dependency remediation, 2026-11-01
 
 The `0.91.90-writing.2` source updates Next.js and `@next/env` to 16.4.3,
