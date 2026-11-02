@@ -9,6 +9,33 @@ The original implementation commits are `9f689cc` (writing plugins and npm lockf
 `302a6c3` (Docker runtime security updates). It does not describe features on
 the fork's default branch until these commits are merged there.
 
+## Payload follow-up, 2026-11-02
+
+A later request reached 21,067,575 bytes, 96,055 bytes above the verified
+20 MiB limit. The exact reported 413 and message were reproduced before the
+change. srv0 Compose now sets `NINEROUTER_MAX_BODY_BYTES` to 33,554,432 (32 MiB);
+the fork Compose default matches through `VANSROUTER_MAX_BODY_BYTES`.
+Retain the promoted writing.2 digest and `9router_9router-data` volume.
+
+After recreation, the reported size and exactly 32 MiB reach authentication
+(401 with no key); 32 MiB plus one byte returns 413. A public-endpoint probe
+at the reported size also returns 401. Public health/readiness return 200,
+version remains 0.91.90, OIDC initiation redirects to the configured SSO origin,
+SQLite integrity is `ok`, and authenticated discovery still returns 43 models.
+Checked persisted settings, key/provider/combo ID sets and counts match the
+pre-change baseline. The four request-body configuration tests pass before and
+after. No new image build or full application suite was needed for this runtime
+configuration change; no live inference or full human OIDC login was tested.
+
+A fresh integrity-checked SQLite online backup, SHA-256
+`3d22d5cab887a5a444767e487a3980a972b6eb21520ef07cd3e505b043886d95`,
+and `compose.previous.yaml` remain in
+`/home/pcc/builds/vansrouter-payload-32m-20261102T182003Z/` on srv0.
+Local evidence is in `/tmp/vansrouter-payload-20261102/`.
+The larger ceiling does not compact retained client history. The new payload's
+contents were not inspected; the earlier screenshot-growth diagnosis remains
+recorded below.
+
 ## Production deployment, 2026-11-02
 
 After operator promotion and deployment selection, srv0 uses:

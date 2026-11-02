@@ -196,7 +196,7 @@ Workflow: `.github/workflows/release.yml`
 
 ## JSON request size
 
-Compose sets `VANSROUTER_MAX_BODY_BYTES` to `20971520` (20 MiB) at runtime.
+Compose sets `VANSROUTER_MAX_BODY_BYTES` to `33554432` (32 MiB) at runtime.
 Override it in `.env`, then recreate the container. `NINEROUTER_MAX_BODY_BYTES`
 is the legacy alias; `VANSROUTER_MAX_BODY_BYTES` takes precedence.
 
@@ -219,3 +219,8 @@ rejection at the previous 15 MiB ceiling. This was accumulated client image
 history; increasing the ceiling does not remove those images. Use fewer
 screenshots, resize/compress screenshots before including them, or start a
 fresh session when image history is no longer needed.
+
+On 2026-11-02, another request reached 21,067,575 bytes, exceeding 20 MiB by
+96,055 bytes. The runtime setting was raised to 32 MiB without changing the
+writing.2 image. This remains a finite limit; image-heavy client histories
+can exceed it again.
