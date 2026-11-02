@@ -48,6 +48,21 @@
   20 MiB setting. Scan IDs, evidence and the quota blocker are recorded in
   `FORK-MAINTENANCE.md`. No upstream tag or npm package was published.
 
+### Production deployment (2026-11-02)
+
+- After operator promotion and selection, deploy the same writing.2 digest from
+  `registry.pcc.fyi/pcc/vansrouter`. Keep the existing data volume and 20 MiB
+  setting. No registry quota changes; writing.3 is not selected for this rollout.
+- Verify health/readiness/version 0.91.90, SQLite integrity, authenticated model
+  discovery, public OIDC redirect, login-page assets and exact payload limits.
+  Persisted settings and all 12 key, nine provider and ten combo IDs match the
+  baseline. The model catalogue reflects upstream GPT-5.5 retirement and
+  OpenCode free-model curation. Full human OIDC sign-in/live inference untested.
+- Verify offsite SQLite and full-volume backups with zero download-comparison
+  differences. Record rollback Compose, image and backup locations in
+  `FORK-MAINTENANCE.md`; deployment checkout commit `181badd` pins the image.
+  The release's 26 recorded amd64 Trivy findings remain open.
+
 ## PCC fork image 0.91.90-writing.1 (2026-11-01)
 
 ### Upstream and fork compatibility
